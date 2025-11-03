@@ -8,14 +8,14 @@ use crate::streaming::{
             EventMetadata,
         },
         core::{
+            dispatcher::EventDispatcher,
             global_state::{
                 add_bonk_dev_address, add_dev_address, is_bonk_dev_address_in_signature,
                 is_dev_address_in_signature,
             },
-            merger_event::merge,
             parser_cache::{
-                build_account_pubkeys_with_cache, get_global_instruction_configs,
-                get_global_program_ids, GenericEventParseConfig,
+                build_account_pubkeys_with_cache,
+                get_global_program_ids,
             },
         },
         DexEvent, Protocol,
@@ -35,6 +35,32 @@ use yellowstone_grpc_proto::geyser::SubscribeUpdateTransactionInfo;
 pub struct EventParser {}
 
 impl EventParser {
+    // 辅助函数：确保 accounts 数组有足够的容量
+    fn ensure_accounts_capacity(accounts: &mut Vec<Pubkey>, instruction_accounts: &[u8]) {
+        if let Some(&max_idx) = instruction_accounts.iter().max() {
+            let required_len = max_idx as usize + 1;
+            if required_len > accounts.len() {
+                accounts.resize(required_len, Pubkey::default());
+            }
+        }
+    }
+
+    // 辅助函数：转换 timestamp 为毫秒
+    fn timestamp_to_millis(block_time: Option<Timestamp>) -> (Timestamp, i64) {
+        let timestamp = block_time.unwrap_or(Timestamp { seconds: 0, nanos: 0 });
+        let millis = timestamp.seconds * 1000 + (timestamp.nanos as i64) / 1_000_000;
+        (timestamp, millis)
+    }
+
+    // 辅助函数：创建回调适配器
+    fn create_callback_adapter(
+        callback: Arc<dyn Fn(DexEvent) + Send + Sync>,
+    ) -> Arc<dyn for<'a> Fn(&'a DexEvent) + Send + Sync> {
+        Arc::new(move |event: &DexEvent| {
+            callback(event.clone());
+        })
+    }
+
     #[allow(clippy::too_many_arguments)]
     async fn parse_instruction_events_from_grpc_transaction(
         protocols: &[Protocol],
@@ -64,11 +90,8 @@ impl EventParser {
                     let inner_instructions = inner_instructions
                         .iter()
                         .find(|inner_instruction| inner_instruction.index == index as u32);
-                    let max_idx = instruction.accounts.iter().max().unwrap_or(&0);
                     // 补齐accounts(使用Pubkey::default())
-                    if *max_idx as usize >= accounts.len() {
-                        accounts.resize(*max_idx as usize + 1, Pubkey::default());
-                    }
+                    Self::ensure_accounts_capacity(&mut accounts, &instruction.accounts);
                     if Self::should_handle(protocols, event_type_filter, &program_id) {
                         Self::parse_events_from_grpc_instruction(
                             protocols,
@@ -155,12 +178,9 @@ impl EventParser {
                     let inner_instructions = inner_instructions
                         .iter()
                         .find(|inner_instruction| inner_instruction.index == index as u8);
+                    // 补齐accounts(使用Pubkey::default())
+                    Self::ensure_accounts_capacity(&mut accounts, &instruction.accounts);
                     if Self::should_handle(protocols, event_type_filter, &program_id) {
-                        let max_idx = instruction.accounts.iter().max().unwrap_or(&0);
-                        // 补齐accounts(使用Pubkey::default())
-                        if *max_idx as usize >= accounts.len() {
-                            accounts.resize(*max_idx as usize + 1, Pubkey::default());
-                        }
                         Self::parse_events_from_instruction(
                             protocols,
                             event_type_filter,
@@ -220,10 +240,7 @@ impl EventParser {
         inner_instructions: &[InnerInstructions],
         callback: Arc<dyn Fn(DexEvent) + Send + Sync>,
     ) -> anyhow::Result<()> {
-        // 创建适配器回调，将所有权回调转换为引用回调
-        let adapter_callback = Arc::new(move |event: &DexEvent| {
-            callback(event.clone());
-        });
+        let adapter_callback = Self::create_callback_adapter(callback);
         let accounts = versioned_tx.message.static_account_keys();
         Self::parse_instruction_events_from_versioned_transaction(
             protocols,
@@ -254,11 +271,7 @@ impl EventParser {
         transaction_index: Option<u64>,
         callback: Arc<dyn Fn(DexEvent) + Send + Sync>,
     ) -> anyhow::Result<()> {
-        // 创建适配器回调，将所有权回调转换为引用回调
-        let adapter_callback = Arc::new(move |event: &DexEvent| {
-            callback(event.clone());
-        });
-        // 调用原始方法
+        let adapter_callback = Self::create_callback_adapter(callback);
         Self::parse_grpc_transaction(
             protocols,
             event_type_filter,
@@ -452,184 +465,6 @@ impl EventParser {
         .await
     }
 
-    /// Helper function to create EventMetadata from common parameters
-    #[inline]
-    fn create_metadata(
-        config: &GenericEventParseConfig,
-        signature: Signature,
-        slot: u64,
-        block_time: Option<Timestamp>,
-        recv_us: i64,
-        outer_index: i64,
-        inner_index: Option<i64>,
-        transaction_index: Option<u64>,
-    ) -> EventMetadata {
-        let timestamp = block_time.unwrap_or(Timestamp { seconds: 0, nanos: 0 });
-        let block_time_ms = timestamp.seconds * 1000 + (timestamp.nanos as i64) / 1_000_000;
-        EventMetadata::new(
-            signature,
-            slot,
-            timestamp.seconds,
-            block_time_ms,
-            config.protocol_type.clone(),
-            config.event_type.clone(),
-            config.program_id,
-            outer_index,
-            inner_index,
-            recv_us,
-            transaction_index,
-        )
-    }
-
-    /// 通用的内联指令解析方法
-    #[allow(clippy::too_many_arguments)]
-    fn parse_inner_instruction_event(
-        config: &GenericEventParseConfig,
-        data: &[u8],
-        signature: Signature,
-        slot: u64,
-        block_time: Option<Timestamp>,
-        recv_us: i64,
-        outer_index: i64,
-        inner_index: Option<i64>,
-        transaction_index: Option<u64>,
-    ) -> Option<DexEvent> {
-        config.inner_instruction_parser.and_then(|parser| {
-            let metadata = Self::create_metadata(
-                config,
-                signature,
-                slot,
-                block_time,
-                recv_us,
-                outer_index,
-                inner_index,
-                transaction_index,
-            );
-            parser(data, metadata)
-        })
-    }
-
-    /// 通用的指令解析方法
-    #[allow(clippy::too_many_arguments)]
-    fn parse_instruction_event(
-        config: &GenericEventParseConfig,
-        data: &[u8],
-        account_pubkeys: &[Pubkey],
-        signature: Signature,
-        slot: u64,
-        block_time: Option<Timestamp>,
-        recv_us: i64,
-        outer_index: i64,
-        inner_index: Option<i64>,
-        transaction_index: Option<u64>,
-    ) -> Option<DexEvent> {
-        config.instruction_parser.and_then(|parser| {
-            let metadata = Self::create_metadata(
-                config,
-                signature,
-                slot,
-                block_time,
-                recv_us,
-                outer_index,
-                inner_index,
-                transaction_index,
-            );
-            parser(data, account_pubkeys, metadata)
-        })
-    }
-
-    /// 从内联指令中解析事件数据 - 通用实现
-    #[allow(clippy::too_many_arguments)]
-    fn parse_events_from_inner_instruction_data(
-        data: &[u8],
-        signature: Signature,
-        slot: u64,
-        block_time: Option<Timestamp>,
-        recv_us: i64,
-        outer_index: i64,
-        inner_index: Option<i64>,
-        transaction_index: Option<u64>,
-        config: &GenericEventParseConfig,
-    ) -> Vec<DexEvent> {
-        // Use SIMD-optimized data validation with correct discriminator length
-        let discriminator_len = config.inner_instruction_discriminator.len();
-        if !SimdUtils::validate_instruction_data_simd(data, 16, discriminator_len) {
-            return Vec::new();
-        }
-
-        // Use SIMD-optimized discriminator matching
-        if !SimdUtils::fast_discriminator_match(data, config.inner_instruction_discriminator) {
-            return Vec::new();
-        }
-
-        let data = &data[16..];
-        Self::parse_inner_instruction_event(
-            config,
-            data,
-            signature,
-            slot,
-            block_time,
-            recv_us,
-            outer_index,
-            inner_index,
-            transaction_index,
-        )
-        .into_iter()
-        .collect()
-    }
-
-    /// 从内联指令中解析事件数据
-    #[allow(clippy::too_many_arguments)]
-    fn parse_events_from_inner_instruction(
-        inner_instruction: &CompiledInstruction,
-        signature: Signature,
-        slot: u64,
-        block_time: Option<Timestamp>,
-        recv_us: i64,
-        outer_index: i64,
-        inner_index: Option<i64>,
-        transaction_index: Option<u64>,
-        config: &GenericEventParseConfig,
-    ) -> Vec<DexEvent> {
-        Self::parse_events_from_inner_instruction_data(
-            &inner_instruction.data,
-            signature,
-            slot,
-            block_time,
-            recv_us,
-            outer_index,
-            inner_index,
-            transaction_index,
-            config,
-        )
-    }
-
-    /// 从内联指令中解析事件数据
-    #[allow(clippy::too_many_arguments)]
-    fn parse_events_from_grpc_inner_instruction(
-        inner_instruction: &yellowstone_grpc_proto::prelude::InnerInstruction,
-        signature: Signature,
-        slot: u64,
-        block_time: Option<Timestamp>,
-        recv_us: i64,
-        outer_index: i64,
-        inner_index: Option<i64>,
-        transaction_index: Option<u64>,
-        config: &GenericEventParseConfig,
-    ) -> Vec<DexEvent> {
-        Self::parse_events_from_inner_instruction_data(
-            &inner_instruction.data,
-            signature,
-            slot,
-            block_time,
-            recv_us,
-            outer_index,
-            inner_index,
-            transaction_index,
-            config,
-        )
-    }
-
     /// 从指令中解析事件
     #[allow(clippy::too_many_arguments)]
     fn parse_events_from_instruction(
@@ -648,129 +483,95 @@ impl EventParser {
         inner_instructions: Option<&InnerInstructions>,
         callback: Arc<dyn for<'a> Fn(&'a DexEvent) + Send + Sync>,
     ) -> anyhow::Result<()> {
-        // 添加边界检查以防止越界访问
-        let program_id_index = instruction.program_id_index as usize;
-        if program_id_index >= accounts.len() {
-            return Ok(());
-        }
-        let program_id = accounts[program_id_index];
-        if !Self::should_handle(protocols, event_type_filter, &program_id) {
-            return Ok(());
-        }
-        // 一维化并行处理：将所有 (discriminator, config) 组合展开并行处理
-        let instruction_configs = get_global_instruction_configs(protocols, event_type_filter);
-        let all_processing_params: Vec<_> = instruction_configs
-            .iter()
-            .filter(|(disc, _)| {
-                // Use SIMD-optimized data validation and discriminator matching
-                SimdUtils::validate_instruction_data_simd(&instruction.data, disc.len(), disc.len())
-                    && SimdUtils::fast_discriminator_match(&instruction.data, disc)
-            })
-            .flat_map(|(disc, configs)| {
-                configs
-                    .iter()
-                    .filter(|config| config.program_id == program_id)
-                    .map(move |config| (disc, config))
-            })
-            .collect();
+        // 验证 program_id
+        let program_id = match Self::validate_program_id(
+            instruction.program_id_index as u32,
+            accounts,
+            protocols,
+            event_type_filter,
+        ) {
+            Some(id) => id,
+            None => return Ok(()),
+        };
 
-        // Use SIMD-optimized account indices validation (只需检查一次)
-        if !SimdUtils::validate_account_indices_simd(&instruction.accounts, accounts.len()) {
-            return Ok(());
-        }
+        // 验证并构建账户公钥列表
+        let account_pubkeys = match Self::validate_and_build_account_pubkeys(&instruction.accounts, accounts) {
+            Some(pubkeys) => pubkeys,
+            None => return Ok(()),
+        };
 
-        // 使用线程局部缓存构建账户公钥列表，避免重复分配 (只需构建一次)
-        let account_pubkeys = build_account_pubkeys_with_cache(&instruction.accounts, accounts);
+        // 提取判别器
+        let (instruction_discriminator, instruction_data) =
+            match Self::extract_instruction_discriminator(&instruction.data) {
+                Some(result) => result,
+                None => return Ok(()),
+            };
 
-        // 并行处理所有 (discriminator, config) 组合
-        let all_results: Vec<_> = all_processing_params
-            .iter()
-            .filter_map(|(disc, config)| {
-                let data = &instruction.data[disc.len()..];
-                Self::parse_instruction_event(
-                    config,
-                    data,
-                    &account_pubkeys,
-                    signature,
-                    slot,
-                    block_time,
-                    recv_us,
-                    outer_index,
-                    inner_index,
-                    transaction_index,
-                )
-                .map(|event| (*disc, *config, event))
-            })
-            .collect();
+        // 准备 inner instruction 数据（如果有）
+        let (inner_discriminator, inner_data) = if let Some(inner_instructions_ref) = inner_instructions {
+            // 尝试从第一个 inner instruction 获取数据
+            if let Some(first_inner) = inner_instructions_ref.instructions.first() {
+                let inner_inst_data = &first_inner.instruction.data;
+                if inner_inst_data.len() >= 24 {  // 16 bytes discriminator + data
+                    (Some(&inner_inst_data[0..16]), Some(&inner_inst_data[16..]))
+                } else {
+                    (None, None)
+                }
+            } else {
+                (None, None)
+            }
+        } else {
+            (None, None)
+        };
 
-        for (_disc, config, mut event) in all_results {
-            // 阻塞处理：原有的同步逻辑
-            let mut inner_instruction_event: Option<DexEvent> = None;
+        // 创建元数据（使用默认值，dispatcher会返回带正确元数据的事件）
+        let (timestamp, block_time_ms) = Self::timestamp_to_millis(block_time);
+        let metadata = EventMetadata::new(
+            signature,
+            slot,
+            timestamp.seconds,
+            block_time_ms,
+            crate::streaming::event_parser::common::ProtocolType::Common,
+            crate::streaming::event_parser::common::EventType::default(),
+            program_id,
+            outer_index,
+            inner_index,
+            recv_us,
+            transaction_index,
+        );
+
+        // 使用 dispatcher 解析事件
+        if let Some(mut event) = EventDispatcher::dispatch_multi(
+            protocols,
+            &program_id,
+            instruction_discriminator,
+            inner_discriminator,
+            instruction_data,
+            inner_data,
+            &account_pubkeys,
+            metadata,
+        ) {
+            // 解析 swap_data（如果需要）
             if let Some(inner_instructions_ref) = inner_instructions {
-                // 并行执行两个任务
-                let (inner_event_result, swap_data_result) = std::thread::scope(|s| {
-                    let inner_event_handle = s.spawn(|| {
-                        for inner_instruction in inner_instructions_ref.instructions.iter() {
-                            let result = Self::parse_events_from_inner_instruction(
-                                &inner_instruction.instruction,
-                                signature,
-                                slot,
-                                block_time,
-                                recv_us,
-                                outer_index,
-                                inner_index,
-                                transaction_index,
-                                &config,
-                            );
-                            if !result.is_empty() {
-                                return result.into_iter().next();
-                            }
-                        }
-                        None
-                    });
-
-                    let swap_data_handle = s.spawn(|| {
-                        if event.metadata().swap_data.is_none() {
-                            parse_swap_data_from_next_instructions(
-                                &event,
-                                inner_instructions_ref,
-                                inner_index.unwrap_or(-1_i64) as i8,
-                                accounts,
-                            )
-                        } else {
-                            None
-                        }
-                    });
-
-                    // 等待两个任务完成
-                    (inner_event_handle.join().unwrap(), swap_data_handle.join().unwrap())
-                });
-
-                inner_instruction_event = inner_event_result;
-                if let Some(swap_data) = swap_data_result {
-                    event.metadata_mut().set_swap_data(swap_data);
+                if event.metadata().swap_data.is_none() {
+                    if let Some(swap_data) = parse_swap_data_from_next_instructions(
+                        &event,
+                        inner_instructions_ref,
+                        inner_index.unwrap_or(-1_i64) as i8,
+                        accounts,
+                    ) {
+                        event.metadata_mut().set_swap_data(swap_data);
+                    }
                 }
             }
 
-            // Skip events that require inner instruction data but don't have it
-            if config.requires_inner_instruction && inner_instruction_event.is_none() {
-                continue;
-            }
-
-            // 合并事件
-            if let Some(inner_instruction_event) = inner_instruction_event {
-                merge(&mut event, inner_instruction_event);
-            }
-            // 设置处理时间（使用高性能时钟）
-            event.metadata_mut().handle_us = elapsed_micros_since(recv_us);
-            event = Self::process_event(event, bot_wallet);
-            callback(&event);
+            // 完成事件处理
+            Self::finalize_event(event, recv_us, bot_wallet, &callback);
         }
         Ok(())
     }
 
-    /// 从指令中解析事件
-    /// TODO: - wait refactor
+    /// 从指令中解析事件 (gRPC版本)
     #[allow(clippy::too_many_arguments)]
     fn parse_events_from_grpc_instruction(
         protocols: &[Protocol],
@@ -788,123 +589,90 @@ impl EventParser {
         inner_instructions: Option<&yellowstone_grpc_proto::prelude::InnerInstructions>,
         callback: Arc<dyn for<'a> Fn(&'a DexEvent) + Send + Sync>,
     ) -> anyhow::Result<()> {
-        // 添加边界检查以防止越界访问
-        let program_id_index = instruction.program_id_index as usize;
-        if program_id_index >= accounts.len() {
-            return Ok(());
-        }
-        let program_id = accounts[program_id_index];
-        if !Self::should_handle(protocols, event_type_filter, &program_id) {
-            return Ok(());
-        }
-        // 一维化并行处理：将所有 (discriminator, config) 组合展开并行处理
-        let instruction_configs = get_global_instruction_configs(protocols, event_type_filter);
-        let all_processing_params: Vec<_> = instruction_configs
-            .iter()
-            .filter(|(disc, _)| {
-                // Use SIMD-optimized data validation and discriminator matching
-                SimdUtils::validate_instruction_data_simd(&instruction.data, disc.len(), disc.len())
-                    && SimdUtils::fast_discriminator_match(&instruction.data, disc)
-            })
-            .flat_map(|(disc, configs)| {
-                configs
-                    .iter()
-                    .filter(|config| config.program_id == program_id)
-                    .map(move |config| (disc, config))
-            })
-            .collect();
+        // 验证 program_id
+        let program_id = match Self::validate_program_id(
+            instruction.program_id_index,
+            accounts,
+            protocols,
+            event_type_filter,
+        ) {
+            Some(id) => id,
+            None => return Ok(()),
+        };
 
-        // Use SIMD-optimized account indices validation (只需检查一次)
-        if !SimdUtils::validate_account_indices_simd(&instruction.accounts, accounts.len()) {
-            return Ok(());
-        }
+        // 验证并构建账户公钥列表
+        let account_pubkeys = match Self::validate_and_build_account_pubkeys(&instruction.accounts, accounts) {
+            Some(pubkeys) => pubkeys,
+            None => return Ok(()),
+        };
 
-        // 使用线程局部缓存构建账户公钥列表，避免重复分配 (只需构建一次)
-        let account_pubkeys = build_account_pubkeys_with_cache(&instruction.accounts, accounts);
+        // 提取判别器
+        let (instruction_discriminator, instruction_data) =
+            match Self::extract_instruction_discriminator(&instruction.data) {
+                Some(result) => result,
+                None => return Ok(()),
+            };
 
-        // 并行处理所有 (discriminator, config) 组合
-        let all_results: Vec<_> = all_processing_params
-            .iter()
-            .filter_map(|(disc, config)| {
-                let data = &instruction.data[disc.len()..];
-                Self::parse_instruction_event(
-                    config,
-                    data,
-                    &account_pubkeys,
-                    signature,
-                    slot,
-                    block_time,
-                    recv_us,
-                    outer_index,
-                    inner_index,
-                    transaction_index,
-                )
-                .map(|event| (*disc, *config, event))
-            })
-            .collect();
+        // 准备 inner instruction 数据（如果有）
+        let (inner_discriminator, inner_data) = if let Some(inner_instructions_ref) = inner_instructions {
+            // 尝试从第一个 inner instruction 获取数据
+            if let Some(first_inner) = inner_instructions_ref.instructions.first() {
+                let inner_inst_data = &first_inner.data;
+                if inner_inst_data.len() >= 24 {  // 16 bytes discriminator + data
+                    (Some(&inner_inst_data[0..16]), Some(&inner_inst_data[16..]))
+                } else {
+                    (None, None)
+                }
+            } else {
+                (None, None)
+            }
+        } else {
+            (None, None)
+        };
 
-        for (_disc, config, mut event) in all_results {
-            // 阻塞处理：原有的同步逻辑
-            let mut inner_instruction_event: Option<DexEvent> = None;
+        // 创建元数据（使用默认值，dispatcher会返回带正确元数据的事件）
+        let (timestamp, block_time_ms) = Self::timestamp_to_millis(block_time);
+        let metadata = EventMetadata::new(
+            signature,
+            slot,
+            timestamp.seconds,
+            block_time_ms,
+            crate::streaming::event_parser::common::ProtocolType::Common,
+            crate::streaming::event_parser::common::EventType::default(),
+            program_id,
+            outer_index,
+            inner_index,
+            recv_us,
+            transaction_index,
+        );
+
+        // 使用 dispatcher 解析事件
+        if let Some(mut event) = EventDispatcher::dispatch_multi(
+            protocols,
+            &program_id,
+            instruction_discriminator,
+            inner_discriminator,
+            instruction_data,
+            inner_data,
+            &account_pubkeys,
+            metadata,
+        ) {
+            // 解析 swap_data（如果需要）
             if let Some(inner_instructions_ref) = inner_instructions {
-                // 并行执行两个任务
-                let (inner_event_result, swap_data_result) = std::thread::scope(|s| {
-                    let inner_event_handle = s.spawn(|| {
-                        for inner_instruction in inner_instructions_ref.instructions.iter() {
-                            let result = Self::parse_events_from_grpc_inner_instruction(
-                                inner_instruction,
-                                signature,
-                                slot,
-                                block_time,
-                                recv_us,
-                                outer_index,
-                                inner_index,
-                                transaction_index,
-                                &config,
-                            );
-                            if !result.is_empty() {
-                                return result.into_iter().next();
-                            }
-                        }
-                        None
-                    });
-
-                    let swap_data_handle = s.spawn(|| {
-                        if event.metadata().swap_data.is_none() {
-                            parse_swap_data_from_next_grpc_instructions(
-                                &event,
-                                inner_instructions_ref,
-                                inner_index.unwrap_or(-1_i64) as i8,
-                                accounts,
-                            )
-                        } else {
-                            None
-                        }
-                    });
-
-                    // 等待两个任务完成
-                    (inner_event_handle.join().unwrap(), swap_data_handle.join().unwrap())
-                });
-
-                inner_instruction_event = inner_event_result;
-                if let Some(swap_data) = swap_data_result {
-                    event.metadata_mut().set_swap_data(swap_data);
+                if event.metadata().swap_data.is_none() {
+                    if let Some(swap_data) = parse_swap_data_from_next_grpc_instructions(
+                        &event,
+                        inner_instructions_ref,
+                        inner_index.unwrap_or(-1_i64) as i8,
+                        accounts,
+                    ) {
+                        event.metadata_mut().set_swap_data(swap_data);
+                    }
                 }
             }
 
-            // Skip events that require inner instruction data but don't have it
-            if config.requires_inner_instruction && inner_instruction_event.is_none() {
-                continue;
-            }
-
-            // 合并事件
-            if let Some(inner_instruction_event) = inner_instruction_event {
-                merge(&mut event, inner_instruction_event);
-            }
-            // 设置处理时间（使用高性能时钟）
-            event.metadata_mut().handle_us = elapsed_micros_since(recv_us);
-            event = Self::process_event(event, bot_wallet);
-            callback(&event);
+            // 完成事件处理
+            Self::finalize_event(event, recv_us, bot_wallet, &callback);
         }
         Ok(())
     }
@@ -915,6 +683,66 @@ impl EventParser {
         program_id: &Pubkey,
     ) -> bool {
         get_global_program_ids(protocols, event_type_filter).contains(program_id)
+    }
+
+    // 辅助函数：设置 swap_data 的 from_amount 和 to_amount
+    fn set_swap_amounts(
+        swap_data: &mut crate::streaming::event_parser::common::SwapData,
+        from_amount: u64,
+        to_amount: u64,
+    ) {
+        swap_data.from_amount = from_amount;
+        swap_data.to_amount = to_amount;
+    }
+
+    // 辅助函数：验证 program_id 是否在 accounts 范围内并且应该被处理
+    fn validate_program_id(
+        program_id_index: u32,
+        accounts: &[Pubkey],
+        protocols: &[Protocol],
+        event_type_filter: Option<&EventTypeFilter>,
+    ) -> Option<Pubkey> {
+        let index = program_id_index as usize;
+        if index >= accounts.len() {
+            return None;
+        }
+        let program_id = accounts[index];
+        if Self::should_handle(protocols, event_type_filter, &program_id) {
+            Some(program_id)
+        } else {
+            None
+        }
+    }
+
+    // 辅助函数：验证并构建账户公钥列表
+    fn validate_and_build_account_pubkeys(
+        instruction_accounts: &[u8],
+        accounts: &[Pubkey],
+    ) -> Option<Vec<Pubkey>> {
+        if !SimdUtils::validate_account_indices_simd(instruction_accounts, accounts.len()) {
+            return None;
+        }
+        Some(build_account_pubkeys_with_cache(instruction_accounts, accounts))
+    }
+
+    // 辅助函数：提取指令数据的判别器
+    fn extract_instruction_discriminator(instruction_data: &[u8]) -> Option<(&[u8], &[u8])> {
+        if instruction_data.len() < 8 {
+            return None;
+        }
+        Some((&instruction_data[0..8], &instruction_data[8..]))
+    }
+
+    // 辅助函数：处理事件的最后步骤（设置时间、处理事件、调用回调）
+    fn finalize_event(
+        mut event: DexEvent,
+        recv_us: i64,
+        bot_wallet: Option<Pubkey>,
+        callback: &Arc<dyn for<'a> Fn(&'a DexEvent) + Send + Sync>,
+    ) {
+        event.metadata_mut().handle_us = elapsed_micros_since(recv_us);
+        event = Self::process_event(event, bot_wallet);
+        callback(&event);
     }
 
     fn process_event(event: DexEvent, bot_wallet: Option<Pubkey>) -> DexEvent {
@@ -935,30 +763,32 @@ impl EventParser {
                 trade_info.is_bot = Some(trade_info.user) == bot_wallet;
 
                 if let Some(swap_data) = trade_info.metadata.swap_data.as_mut() {
-                    swap_data.from_amount = if trade_info.is_buy {
-                        trade_info.sol_amount
+                    let (from, to) = if trade_info.is_buy {
+                        (trade_info.sol_amount, trade_info.token_amount)
                     } else {
-                        trade_info.token_amount
+                        (trade_info.token_amount, trade_info.sol_amount)
                     };
-                    swap_data.to_amount = if trade_info.is_buy {
-                        trade_info.token_amount
-                    } else {
-                        trade_info.sol_amount
-                    };
+                    Self::set_swap_amounts(swap_data, from, to);
                 }
                 DexEvent::PumpFunTradeEvent(trade_info)
             }
             DexEvent::PumpSwapBuyEvent(mut trade_info) => {
                 if let Some(swap_data) = trade_info.metadata.swap_data.as_mut() {
-                    swap_data.from_amount = trade_info.user_quote_amount_in;
-                    swap_data.to_amount = trade_info.base_amount_out;
+                    Self::set_swap_amounts(
+                        swap_data,
+                        trade_info.user_quote_amount_in,
+                        trade_info.base_amount_out,
+                    );
                 }
                 DexEvent::PumpSwapBuyEvent(trade_info)
             }
             DexEvent::PumpSwapSellEvent(mut trade_info) => {
                 if let Some(swap_data) = trade_info.metadata.swap_data.as_mut() {
-                    swap_data.from_amount = trade_info.base_amount_in;
-                    swap_data.to_amount = trade_info.user_quote_amount_out;
+                    Self::set_swap_amounts(
+                        swap_data,
+                        trade_info.base_amount_in,
+                        trade_info.user_quote_amount_out,
+                    );
                 }
                 DexEvent::PumpSwapSellEvent(trade_info)
             }
