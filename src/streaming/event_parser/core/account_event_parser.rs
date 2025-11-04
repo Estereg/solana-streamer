@@ -71,12 +71,12 @@ impl AccountEventParser {
             if let Some(protocol) = EventDispatcher::match_protocol_by_program_id(&account.owner) {
                 // 检查是否在请求的协议列表中
                 if protocols.contains(&protocol) {
-                    // 构建临时元数据（具体的event_type会在parser中设置）
+                    // 构建临时元数据（protocol会被dispatcher设置，event_type会在parser中设置）
                     let metadata = EventMetadata {
                         slot: account.slot,
                         signature: account.signature,
-                        protocol: ProtocolType::Common, // 会被具体parser覆盖
-                        event_type: EventType::default(), // 会被具体parser覆盖
+                        protocol: ProtocolType::Common, // 会被 EventDispatcher::dispatch_account 设置
+                        event_type: EventType::default(), // 会被具体 parser 设置
                         program_id: account.owner,
                         recv_us: account.recv_us,
                         handle_us: elapsed_micros_since(account.recv_us),
@@ -144,8 +144,10 @@ impl AccountEventParser {
 
     pub fn parse_token_account_event(
         account: &AccountPretty,
-        metadata: EventMetadata,
+        mut metadata: EventMetadata,
     ) -> Option<DexEvent> {
+        metadata.event_type = EventType::TokenAccount;
+
         let pubkey = account.pubkey;
         let executable = account.executable;
         let lamports = account.lamports;
@@ -212,8 +214,10 @@ impl AccountEventParser {
 
     pub fn parse_nonce_account_event(
         account: &AccountPretty,
-        metadata: EventMetadata,
+        mut metadata: EventMetadata,
     ) -> Option<DexEvent> {
+        metadata.event_type = EventType::NonceAccount;
+
         if let Ok(info) = parse_nonce(&account.data) {
             match info {
                 solana_account_decoder::parse_nonce::UiNonceState::Initialized(details) => {
