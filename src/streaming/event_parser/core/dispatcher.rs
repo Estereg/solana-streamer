@@ -9,13 +9,9 @@
 
 use crate::streaming::event_parser::{
     common::EventMetadata,
-    core::merger_event::merge,
     protocols::{
-        bonk::parser as bonk,
-        pumpfun::parser as pumpfun,
-        pumpswap::parser as pumpswap,
-        raydium_amm_v4::parser as raydium_amm_v4,
-        raydium_clmm::parser as raydium_clmm,
+        bonk::parser as bonk, pumpfun::parser as pumpfun, pumpswap::parser as pumpswap,
+        raydium_amm_v4::parser as raydium_amm_v4, raydium_clmm::parser as raydium_clmm,
         raydium_cpmm::parser as raydium_cpmm,
     },
     DexEvent, Protocol,
@@ -160,110 +156,6 @@ impl EventDispatcher {
         }
     }
 
-    /// 解析并合并 instruction 和 inner instruction 事件（便捷方法）
-    ///
-    /// # 参数
-    /// - `protocol`: 协议类型
-    /// - `instruction_discriminator`: 指令判别器 (8 bytes)
-    /// - `inner_instruction_discriminator`: 内联指令判别器 (16 bytes, 可选)
-    /// - `instruction_data`: 指令数据
-    /// - `inner_instruction_data`: 内联指令数据 (可选)
-    /// - `accounts`: 账户公钥列表
-    /// - `metadata`: 事件元数据
-    ///
-    /// # 返回
-    /// 解析成功返回 `Some(DexEvent)`，否则返回 `None`
-    ///
-    /// # 逻辑说明
-    /// 1. 解析 instruction 事件
-    /// 2. 解析 inner instruction 事件（如果有）
-    /// 3. 在外层合并两个事件
-    /// 4. 应用特殊处理逻辑（如 PumpFun MIGRATE）
-    #[inline]
-    pub fn dispatch(
-        protocol: Protocol,
-        instruction_discriminator: &[u8],
-        inner_instruction_discriminator: Option<&[u8]>,
-        instruction_data: &[u8],
-        inner_instruction_data: Option<&[u8]>,
-        accounts: &[Pubkey],
-        metadata: EventMetadata,
-    ) -> Option<DexEvent> {
-        // 1. 解析 instruction 事件
-        let mut instruction_event = Self::dispatch_instruction(
-            protocol.clone(),
-            instruction_discriminator,
-            instruction_data,
-            accounts,
-            metadata.clone(),
-        );
-
-        // 2. 解析 inner instruction 事件（如果有）
-        if let Some(inner_disc) = inner_instruction_discriminator {
-            if let Some(inner_data) = inner_instruction_data {
-                let inner_event = Self::dispatch_inner_instruction(
-                    protocol.clone(),
-                    inner_disc,
-                    inner_data,
-                    metadata,
-                );
-
-                // 3. 在外层合并
-                if let Some(inner_event) = inner_event {
-                    if let Some(ref mut inst_event) = instruction_event {
-                        merge(inst_event, inner_event);
-                    } else {
-                        // 如果没有 instruction 事件，直接使用 inner 事件
-                        instruction_event = Some(inner_event);
-                    }
-                }
-            }
-        }
-
-        // 4. 特殊处理: PumpFun MIGRATE 指令需要 inner instruction data
-        // 如果没有 inner instruction data，应该返回 None（失败的迁移）
-        if matches!(&protocol, &Protocol::PumpFun) {
-            const PUMPFUN_MIGRATE_IX: &[u8] = &[155, 234, 231, 146, 236, 158, 162, 30];
-            if instruction_discriminator == PUMPFUN_MIGRATE_IX && inner_instruction_data.is_none() {
-                return None;
-            }
-        }
-
-        instruction_event
-    }
-
-    /// 遍历多个协议尝试解析 (用于不确定协议类型的场景)
-    ///
-    /// 先通过 program_id 快速定位协议类型，再检查是否在请求的协议列表中
-    pub fn dispatch_multi(
-        protocols: &[Protocol],
-        program_id: &Pubkey,
-        instruction_discriminator: &[u8],
-        inner_instruction_discriminator: Option<&[u8]>,
-        instruction_data: &[u8],
-        inner_instruction_data: Option<&[u8]>,
-        accounts: &[Pubkey],
-        metadata: EventMetadata,
-    ) -> Option<DexEvent> {
-        // 先通过 program_id 快速过滤协议
-        let target_protocol = Self::match_protocol_by_program_id(program_id)?;
-
-        // 如果目标协议在请求列表中，则解析
-        if protocols.contains(&target_protocol) {
-            Self::dispatch(
-                target_protocol,
-                instruction_discriminator,
-                inner_instruction_discriminator,
-                instruction_data,
-                inner_instruction_data,
-                accounts,
-                metadata,
-            )
-        } else {
-            None
-        }
-    }
-
     /// 通过 program_id 匹配协议类型
     #[inline]
     pub fn match_protocol_by_program_id(program_id: &Pubkey) -> Option<Protocol> {
@@ -332,36 +224,22 @@ impl EventDispatcher {
         };
 
         match protocol {
-            Protocol::PumpFun => pumpfun::parse_pumpfun_account_data(
-                discriminator,
-                account,
-                metadata,
-            ),
-            Protocol::PumpSwap => pumpswap::parse_pumpswap_account_data(
-                discriminator,
-                account,
-                metadata,
-            ),
-            Protocol::Bonk => bonk::parse_bonk_account_data(
-                discriminator,
-                account,
-                metadata,
-            ),
-            Protocol::RaydiumCpmm => raydium_cpmm::parse_raydium_cpmm_account_data(
-                discriminator,
-                account,
-                metadata,
-            ),
-            Protocol::RaydiumClmm => raydium_clmm::parse_raydium_clmm_account_data(
-                discriminator,
-                account,
-                metadata,
-            ),
-            Protocol::RaydiumAmmV4 => raydium_amm_v4::parse_raydium_amm_v4_account_data(
-                discriminator,
-                account,
-                metadata,
-            ),
+            Protocol::PumpFun => {
+                pumpfun::parse_pumpfun_account_data(discriminator, account, metadata)
+            }
+            Protocol::PumpSwap => {
+                pumpswap::parse_pumpswap_account_data(discriminator, account, metadata)
+            }
+            Protocol::Bonk => bonk::parse_bonk_account_data(discriminator, account, metadata),
+            Protocol::RaydiumCpmm => {
+                raydium_cpmm::parse_raydium_cpmm_account_data(discriminator, account, metadata)
+            }
+            Protocol::RaydiumClmm => {
+                raydium_clmm::parse_raydium_clmm_account_data(discriminator, account, metadata)
+            }
+            Protocol::RaydiumAmmV4 => {
+                raydium_amm_v4::parse_raydium_amm_v4_account_data(discriminator, account, metadata)
+            }
         }
     }
 }
