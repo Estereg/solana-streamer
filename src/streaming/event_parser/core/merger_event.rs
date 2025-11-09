@@ -38,6 +38,22 @@ pub fn merge(instruction_event: &mut DexEvent, cpi_log_event: DexEvent) {
             }
             _ => {}
         },
+        DexEvent::PumpFunCreateV2TokenEvent(e) => match cpi_log_event {
+            DexEvent::PumpFunCreateV2TokenEvent(cpie) => {
+                e.mint = cpie.mint;
+                e.bonding_curve = cpie.bonding_curve;
+                e.user = cpie.user;
+                e.creator = cpie.creator;
+                e.timestamp = cpie.timestamp;
+                e.virtual_token_reserves = cpie.virtual_token_reserves;
+                e.virtual_sol_reserves = cpie.virtual_sol_reserves;
+                e.real_token_reserves = cpie.real_token_reserves;
+                e.token_total_supply = cpie.token_total_supply;
+                e.token_program = cpie.token_program;
+                e.is_mayhem_mode = cpie.is_mayhem_mode;
+            }
+            _ => {}
+        },
         DexEvent::PumpFunMigrateEvent(e) => match cpi_log_event {
             DexEvent::PumpFunMigrateEvent(cpie) => {
                 e.user = cpie.user;

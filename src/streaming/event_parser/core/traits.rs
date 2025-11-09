@@ -26,6 +26,7 @@ pub enum DexEvent {
 
     // PumpFun events
     PumpFunCreateTokenEvent(PumpFunCreateTokenEvent),
+    PumpFunCreateV2TokenEvent(PumpFunCreateV2TokenEvent),
     PumpFunTradeEvent(PumpFunTradeEvent),
     PumpFunMigrateEvent(PumpFunMigrateEvent),
     PumpFunBondingCurveAccountEvent(PumpFunBondingCurveAccountEvent),
@@ -87,6 +88,7 @@ impl DexEvent {
             DexEvent::BonkGlobalConfigAccountEvent(e) => &e.metadata,
             DexEvent::BonkPlatformConfigAccountEvent(e) => &e.metadata,
             DexEvent::PumpFunCreateTokenEvent(e) => &e.metadata,
+            DexEvent::PumpFunCreateV2TokenEvent(e) => &e.metadata,
             DexEvent::PumpFunTradeEvent(e) => &e.metadata,
             DexEvent::PumpFunMigrateEvent(e) => &e.metadata,
             DexEvent::PumpFunBondingCurveAccountEvent(e) => &e.metadata,
@@ -138,6 +140,7 @@ impl DexEvent {
             DexEvent::BonkGlobalConfigAccountEvent(e) => &mut e.metadata,
             DexEvent::BonkPlatformConfigAccountEvent(e) => &mut e.metadata,
             DexEvent::PumpFunCreateTokenEvent(e) => &mut e.metadata,
+            DexEvent::PumpFunCreateV2TokenEvent(e) => &mut e.metadata,
             DexEvent::PumpFunTradeEvent(e) => &mut e.metadata,
             DexEvent::PumpFunMigrateEvent(e) => &mut e.metadata,
             DexEvent::PumpFunBondingCurveAccountEvent(e) => &mut e.metadata,

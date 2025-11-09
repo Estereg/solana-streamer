@@ -69,6 +69,7 @@ pub enum EventType {
 
     // PumpFun events
     PumpFunCreateToken,
+    PumpFunCreateV2Token,
     PumpFunBuy,
     PumpFunSell,
     PumpFunMigrate,
@@ -162,6 +163,7 @@ impl fmt::Display for EventType {
             EventType::PumpSwapDeposit => write!(f, "PumpSwapDeposit"),
             EventType::PumpSwapWithdraw => write!(f, "PumpSwapWithdraw"),
             EventType::PumpFunCreateToken => write!(f, "PumpFunCreateToken"),
+            EventType::PumpFunCreateV2Token => write!(f, "PumpFunCreateV2Token"),
             EventType::PumpFunBuy => write!(f, "PumpFunBuy"),
             EventType::PumpFunSell => write!(f, "PumpFunSell"),
             EventType::PumpFunMigrate => write!(f, "PumpFunMigrate"),

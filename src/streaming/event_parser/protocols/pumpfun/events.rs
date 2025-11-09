@@ -37,6 +37,39 @@ pub fn pumpfun_create_token_event_log_decode(data: &[u8]) -> Option<PumpFunCreat
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
+pub struct PumpFunCreateV2TokenEvent {
+    #[borsh(skip)]
+    pub metadata: EventMetadata,
+    pub name: String,
+    pub symbol: String,
+    pub uri: String,
+    pub mint: Pubkey,
+    pub bonding_curve: Pubkey,
+    pub user: Pubkey,
+    pub creator: Pubkey,
+    pub timestamp: i64,
+    pub virtual_token_reserves: u64,
+    pub virtual_sol_reserves: u64,
+    pub real_token_reserves: u64,
+    pub token_total_supply: u64,
+    pub token_program: Pubkey,
+    pub is_mayhem_mode: bool,
+    #[borsh(skip)]
+    pub mint_authority: Pubkey,
+    #[borsh(skip)]
+    pub associated_bonding_curve: Pubkey,
+}
+
+pub const PUMPFUN_CREATE_V2_TOKEN_EVENT_LOG_SIZE: usize = 257 + 32 + 1;
+
+pub fn pumpfun_create_v2_token_event_log_decode(data: &[u8]) -> Option<PumpFunCreateV2TokenEvent> {
+    if data.len() < PUMPFUN_CREATE_V2_TOKEN_EVENT_LOG_SIZE {
+        return None;
+    }
+    borsh::from_slice::<PumpFunCreateV2TokenEvent>(&data[..PUMPFUN_CREATE_V2_TOKEN_EVENT_LOG_SIZE]).ok()
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct PumpFunTradeEvent {
     #[borsh(skip)]
     pub metadata: EventMetadata,
@@ -101,6 +134,10 @@ pub struct PumpFunTradeEvent {
     pub global_volume_accumulator: Pubkey,
     #[borsh(skip)]
     pub user_volume_accumulator: Pubkey,
+    #[borsh(skip)]
+    pub fee_config: Pubkey,
+    #[borsh(skip)]
+    pub fee_program: Pubkey,
 }
 
 pub const PUMPFUN_TRADE_EVENT_LOG_SIZE: usize = 250;
@@ -218,6 +255,7 @@ pub mod discriminators {
 
     // 指令鉴别器
     pub const CREATE_TOKEN_IX: &[u8] = &[24, 30, 200, 40, 5, 28, 7, 119];
+    pub const CREATE_V2_TOKEN_IX: &[u8] = &[214, 144, 76, 236, 95, 139, 49, 180];
     pub const BUY_IX: &[u8] = &[102, 6, 61, 18, 1, 218, 235, 234];
     pub const SELL_IX: &[u8] = &[51, 230, 133, 164, 1, 127, 131, 173];
     pub const MIGRATE_IX: &[u8] = &[155, 234, 231, 146, 236, 158, 162, 30];
