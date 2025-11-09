@@ -25,7 +25,7 @@ pub fn merge(instruction_event: &mut DexEvent, cpi_log_event: DexEvent) {
             _ => {}
         },
         DexEvent::PumpFunCreateTokenEvent(e) => match cpi_log_event {
-            DexEvent::PumpFunCreateTokenEvent(cpie) => {
+            DexEvent::PumpFunCreateV2TokenEvent(cpie) => {
                 e.mint = cpie.mint;
                 e.bonding_curve = cpie.bonding_curve;
                 e.user = cpie.user;
@@ -35,6 +35,8 @@ pub fn merge(instruction_event: &mut DexEvent, cpi_log_event: DexEvent) {
                 e.virtual_sol_reserves = cpie.virtual_sol_reserves;
                 e.real_token_reserves = cpie.real_token_reserves;
                 e.token_total_supply = cpie.token_total_supply;
+                e.token_program = cpie.token_program;
+                e.is_mayhem_mode = cpie.is_mayhem_mode;
             }
             _ => {}
         },
