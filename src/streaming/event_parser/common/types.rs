@@ -51,6 +51,7 @@ pub enum ProtocolType {
     RaydiumCpmm,
     RaydiumClmm,
     RaydiumAmmV4,
+    MeteoraDammV2,
     Common,
 }
 
@@ -109,6 +110,13 @@ pub enum EventType {
     RaydiumAmmV4Initialize2,
     RaydiumAmmV4Withdraw,
     RaydiumAmmV4WithdrawPnl,
+
+    // Meteora DAMM v2 events
+    MeteoraDammV2Swap,
+    MeteoraDammV2Swap2,
+    MeteoraDammV2InitializePool,
+    MeteoraDammV2InitializeCustomizablePool,
+    MeteoraDammV2InitializePoolWithDynamicConfig,
 
     // Account events
     AccountRaydiumAmmV4AmmInfo,
@@ -201,6 +209,11 @@ impl fmt::Display for EventType {
             EventType::RaydiumAmmV4Initialize2 => write!(f, "RaydiumAmmV4Initialize2"),
             EventType::RaydiumAmmV4Withdraw => write!(f, "RaydiumAmmV4Withdraw"),
             EventType::RaydiumAmmV4WithdrawPnl => write!(f, "RaydiumAmmV4WithdrawPnl"),
+            EventType::MeteoraDammV2Swap => write!(f, "MeteoraDammV2Swap"),
+            EventType::MeteoraDammV2Swap2 => write!(f, "MeteoraDammV2Swap2"),
+            EventType::MeteoraDammV2InitializePool => write!(f, "MeteoraDammV2InitializePool"),
+            EventType::MeteoraDammV2InitializeCustomizablePool => write!(f, "MeteoraDammV2InitializeCustomizablePool"),
+            EventType::MeteoraDammV2InitializePoolWithDynamicConfig => write!(f, "MeteoraDammV2InitializePoolWithDynamicConfig"),
             EventType::AccountRaydiumAmmV4AmmInfo => write!(f, "AccountRaydiumAmmV4AmmInfo"),
             EventType::AccountPumpSwapGlobalConfig => write!(f, "AccountPumpSwapGlobalConfig"),
             EventType::AccountPumpSwapPool => write!(f, "AccountPumpSwapPool"),

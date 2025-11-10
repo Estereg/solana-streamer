@@ -10,9 +10,9 @@
 use crate::streaming::event_parser::{
     common::EventMetadata,
     protocols::{
-        bonk::parser as bonk, pumpfun::parser as pumpfun, pumpswap::parser as pumpswap,
-        raydium_amm_v4::parser as raydium_amm_v4, raydium_clmm::parser as raydium_clmm,
-        raydium_cpmm::parser as raydium_cpmm,
+        bonk::parser as bonk, meteora_damm_v2::parser as meteora_damm_v2, pumpfun::parser as pumpfun,
+        pumpswap::parser as pumpswap, raydium_amm_v4::parser as raydium_amm_v4,
+        raydium_clmm::parser as raydium_clmm, raydium_cpmm::parser as raydium_cpmm,
     },
     DexEvent, Protocol,
 };
@@ -52,6 +52,7 @@ impl EventDispatcher {
             Protocol::RaydiumCpmm => ProtocolType::RaydiumCpmm,
             Protocol::RaydiumClmm => ProtocolType::RaydiumClmm,
             Protocol::RaydiumAmmV4 => ProtocolType::RaydiumAmmV4,
+            Protocol::MeteoraDammV2 => ProtocolType::MeteoraDammV2,
         };
 
         match protocol {
@@ -91,6 +92,12 @@ impl EventDispatcher {
                 accounts,
                 metadata,
             ),
+            Protocol::MeteoraDammV2 => meteora_damm_v2::parse_meteora_damm_v2_instruction_data(
+                instruction_discriminator,
+                instruction_data,
+                accounts,
+                metadata,
+            ),
         }
     }
 
@@ -120,6 +127,7 @@ impl EventDispatcher {
             Protocol::RaydiumCpmm => ProtocolType::RaydiumCpmm,
             Protocol::RaydiumClmm => ProtocolType::RaydiumClmm,
             Protocol::RaydiumAmmV4 => ProtocolType::RaydiumAmmV4,
+            Protocol::MeteoraDammV2 => ProtocolType::MeteoraDammV2,
         };
 
         match protocol {
@@ -153,6 +161,11 @@ impl EventDispatcher {
                 inner_instruction_data,
                 metadata,
             ),
+            Protocol::MeteoraDammV2 => meteora_damm_v2::parse_meteora_damm_v2_inner_instruction_data(
+                inner_instruction_discriminator,
+                inner_instruction_data,
+                metadata,
+            ),
         }
     }
 
@@ -171,6 +184,8 @@ impl EventDispatcher {
             Some(Protocol::RaydiumClmm)
         } else if program_id == &raydium_amm_v4::RAYDIUM_AMM_V4_PROGRAM_ID {
             Some(Protocol::RaydiumAmmV4)
+        } else if program_id == &meteora_damm_v2::METEORA_DAMM_V2_PROGRAM_ID {
+            Some(Protocol::MeteoraDammV2)
         } else {
             None
         }
@@ -186,6 +201,7 @@ impl EventDispatcher {
             Protocol::RaydiumCpmm => raydium_cpmm::RAYDIUM_CPMM_PROGRAM_ID,
             Protocol::RaydiumClmm => raydium_clmm::RAYDIUM_CLMM_PROGRAM_ID,
             Protocol::RaydiumAmmV4 => raydium_amm_v4::RAYDIUM_AMM_V4_PROGRAM_ID,
+            Protocol::MeteoraDammV2 => meteora_damm_v2::METEORA_DAMM_V2_PROGRAM_ID,
         }
     }
 
@@ -221,6 +237,7 @@ impl EventDispatcher {
             Protocol::RaydiumCpmm => ProtocolType::RaydiumCpmm,
             Protocol::RaydiumClmm => ProtocolType::RaydiumClmm,
             Protocol::RaydiumAmmV4 => ProtocolType::RaydiumAmmV4,
+            Protocol::MeteoraDammV2 => ProtocolType::MeteoraDammV2,
         };
 
         match protocol {
@@ -239,6 +256,10 @@ impl EventDispatcher {
             }
             Protocol::RaydiumAmmV4 => {
                 raydium_amm_v4::parse_raydium_amm_v4_account_data(discriminator, account, metadata)
+            }
+            Protocol::MeteoraDammV2 => {
+                // Meteora DAMM 目前不需要解析账户数据，返回 None
+                None
             }
         }
     }
