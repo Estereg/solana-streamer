@@ -331,14 +331,19 @@ impl EventParser {
             None => return Ok(()),
         };
 
+        let disc_len = match protocol {
+            Protocol::RaydiumAmmV4 => 1,
+            _ => 8,
+        };
+
         // 检查指令数据长度（至少需要 8 字节的 discriminator）
-        if instruction.data.len() < 8 {
+        if instruction.data.len() < disc_len {
             return Ok(());
         }
 
         // 提取 discriminator 和数据
-        let instruction_discriminator = &instruction.data[..8];
-        let instruction_data = &instruction.data[8..];
+        let instruction_discriminator = &instruction.data[..disc_len];
+        let instruction_data = &instruction.data[disc_len..];
 
         // 构建账户公钥列表
         let account_pubkeys: Vec<Pubkey> = instruction
