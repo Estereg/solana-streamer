@@ -2,6 +2,9 @@ use crate::streaming::event_parser::common::EventMetadata;
 use crate::streaming::event_parser::core::account_event_parser::{
     NonceAccountEvent, TokenAccountEvent, TokenInfoEvent,
 };
+use crate::streaming::event_parser::core::common_event_parser::{
+    SetComputeUnitLimitEvent, SetComputeUnitPriceEvent,
+};
 use crate::streaming::event_parser::protocols::block::block_meta_event::BlockMetaEvent;
 use crate::streaming::event_parser::protocols::bonk::events::*;
 use crate::streaming::event_parser::protocols::meteora_damm_v2::events::*;
@@ -83,6 +86,8 @@ pub enum DexEvent {
     NonceAccountEvent(NonceAccountEvent),
     TokenInfoEvent(TokenInfoEvent),
     BlockMetaEvent(BlockMetaEvent),
+    SetComputeUnitLimitEvent(SetComputeUnitLimitEvent),
+    SetComputeUnitPriceEvent(SetComputeUnitPriceEvent),
 }
 
 impl DexEvent {
@@ -140,6 +145,8 @@ impl DexEvent {
             DexEvent::NonceAccountEvent(e) => &e.metadata,
             DexEvent::TokenInfoEvent(e) => &e.metadata,
             DexEvent::BlockMetaEvent(e) => &e.metadata,
+            DexEvent::SetComputeUnitLimitEvent(e) => &e.metadata,
+            DexEvent::SetComputeUnitPriceEvent(e) => &e.metadata,
         }
     }
 
@@ -197,6 +204,8 @@ impl DexEvent {
             DexEvent::NonceAccountEvent(e) => &mut e.metadata,
             DexEvent::TokenInfoEvent(e) => &mut e.metadata,
             DexEvent::BlockMetaEvent(e) => &mut e.metadata,
+            DexEvent::SetComputeUnitLimitEvent(e) => &mut e.metadata,
+            DexEvent::SetComputeUnitPriceEvent(e) => &mut e.metadata,
         }
     }
 }
