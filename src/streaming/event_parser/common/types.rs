@@ -52,6 +52,7 @@ pub enum ProtocolType {
     RaydiumClmm,
     RaydiumAmmV4,
     MeteoraDammV2,
+    MeteoraDlmm,
     Common,
 }
 
@@ -133,6 +134,7 @@ pub enum EventType {
     AccountRaydiumClmmTickArrayState,
     AccountRaydiumCpmmAmmConfig,
     AccountRaydiumCpmmPoolState,
+    AccountMeteoraDlmmLbPair,
 
     NonceAccount,
     TokenAccount,
@@ -159,6 +161,7 @@ pub const ACCOUNT_EVENT_TYPES: &[EventType] = &[
     EventType::AccountRaydiumClmmTickArrayState,
     EventType::AccountRaydiumCpmmAmmConfig,
     EventType::AccountRaydiumCpmmPoolState,
+    EventType::AccountMeteoraDlmmLbPair,
     EventType::TokenAccount,
     EventType::NonceAccount,
 ];
@@ -232,6 +235,7 @@ impl fmt::Display for EventType {
             }
             EventType::AccountRaydiumCpmmAmmConfig => write!(f, "AccountRaydiumCpmmAmmConfig"),
             EventType::AccountRaydiumCpmmPoolState => write!(f, "AccountRaydiumCpmmPoolState"),
+            EventType::AccountMeteoraDlmmLbPair => write!(f, "AccountMeteoraDlmmLbPair"),
             EventType::TokenAccount => write!(f, "TokenAccount"),
             EventType::NonceAccount => write!(f, "NonceAccount"),
             EventType::BlockMeta => write!(f, "BlockMeta"),

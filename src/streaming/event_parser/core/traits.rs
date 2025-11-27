@@ -8,6 +8,7 @@ use crate::streaming::event_parser::core::common_event_parser::{
 use crate::streaming::event_parser::protocols::block::block_meta_event::BlockMetaEvent;
 use crate::streaming::event_parser::protocols::bonk::events::*;
 use crate::streaming::event_parser::protocols::meteora_damm_v2::events::*;
+use crate::streaming::event_parser::protocols::meteora_dlmm::events::*;
 use crate::streaming::event_parser::protocols::pumpfun::events::*;
 use crate::streaming::event_parser::protocols::pumpswap::events::*;
 use crate::streaming::event_parser::protocols::raydium_amm_v4::events::*;
@@ -81,6 +82,9 @@ pub enum DexEvent {
     MeteoraDammV2InitializeCustomizablePoolEvent(MeteoraDammV2InitializeCustomizablePoolEvent),
     MeteoraDammV2InitializePoolWithDynamicConfigEvent(MeteoraDammV2InitializePoolWithDynamicConfigEvent),
 
+    // Meteora DLMM events
+    MeteoraDlmmLbPairAccountEvent(MeteoraDlmmLbPairAccountEvent),
+
     // Common events
     TokenAccountEvent(TokenAccountEvent),
     NonceAccountEvent(NonceAccountEvent),
@@ -141,6 +145,7 @@ impl DexEvent {
             DexEvent::MeteoraDammV2InitializePoolEvent(e) => &e.metadata,
             DexEvent::MeteoraDammV2InitializeCustomizablePoolEvent(e) => &e.metadata,
             DexEvent::MeteoraDammV2InitializePoolWithDynamicConfigEvent(e) => &e.metadata,
+            DexEvent::MeteoraDlmmLbPairAccountEvent(e) => &e.metadata,
             DexEvent::TokenAccountEvent(e) => &e.metadata,
             DexEvent::NonceAccountEvent(e) => &e.metadata,
             DexEvent::TokenInfoEvent(e) => &e.metadata,
@@ -200,6 +205,7 @@ impl DexEvent {
             DexEvent::MeteoraDammV2InitializePoolEvent(e) => &mut e.metadata,
             DexEvent::MeteoraDammV2InitializeCustomizablePoolEvent(e) => &mut e.metadata,
             DexEvent::MeteoraDammV2InitializePoolWithDynamicConfigEvent(e) => &mut e.metadata,
+            DexEvent::MeteoraDlmmLbPairAccountEvent(e) => &mut e.metadata,
             DexEvent::TokenAccountEvent(e) => &mut e.metadata,
             DexEvent::NonceAccountEvent(e) => &mut e.metadata,
             DexEvent::TokenInfoEvent(e) => &mut e.metadata,
