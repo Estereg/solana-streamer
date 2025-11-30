@@ -14,6 +14,7 @@ use crate::streaming::event_parser::protocols::pumpswap::events::*;
 use crate::streaming::event_parser::protocols::raydium_amm_v4::events::*;
 use crate::streaming::event_parser::protocols::raydium_clmm::events::*;
 use crate::streaming::event_parser::protocols::raydium_cpmm::events::*;
+use crate::streaming::event_parser::protocols::whirlpool::events::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
@@ -86,6 +87,9 @@ pub enum DexEvent {
     // Meteora DLMM events
     MeteoraDlmmLbPairAccountEvent(MeteoraDlmmLbPairAccountEvent),
 
+    // Whirlpool events
+    WhirlpoolAccountEvent(WhirlpoolAccountEvent),
+
     // Common events
     TokenAccountEvent(TokenAccountEvent),
     NonceAccountEvent(NonceAccountEvent),
@@ -148,6 +152,7 @@ impl DexEvent {
             DexEvent::MeteoraDammV2InitializeCustomizablePoolEvent(e) => &e.metadata,
             DexEvent::MeteoraDammV2InitializePoolWithDynamicConfigEvent(e) => &e.metadata,
             DexEvent::MeteoraDlmmLbPairAccountEvent(e) => &e.metadata,
+            DexEvent::WhirlpoolAccountEvent(e) => &e.metadata,
             DexEvent::TokenAccountEvent(e) => &e.metadata,
             DexEvent::NonceAccountEvent(e) => &e.metadata,
             DexEvent::TokenInfoEvent(e) => &e.metadata,
@@ -209,6 +214,7 @@ impl DexEvent {
             DexEvent::MeteoraDammV2InitializeCustomizablePoolEvent(e) => &mut e.metadata,
             DexEvent::MeteoraDammV2InitializePoolWithDynamicConfigEvent(e) => &mut e.metadata,
             DexEvent::MeteoraDlmmLbPairAccountEvent(e) => &mut e.metadata,
+            DexEvent::WhirlpoolAccountEvent(e) => &mut e.metadata,
             DexEvent::TokenAccountEvent(e) => &mut e.metadata,
             DexEvent::NonceAccountEvent(e) => &mut e.metadata,
             DexEvent::TokenInfoEvent(e) => &mut e.metadata,

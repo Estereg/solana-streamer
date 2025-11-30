@@ -275,5 +275,5 @@ pub mod discriminators {
     pub const AMM_CONFIG: &[u8] = &[218, 244, 33, 104, 203, 203, 43, 111];
     pub const POOL_STATE: &[u8] = &[247, 237, 227, 245, 215, 195, 222, 70];
     pub const TICK_ARRAY_STATE: &[u8] = &[192, 155, 85, 205, 49, 249, 129, 42];
-    pub const TICK_ARRAY_BITMAP_EXTENSION: &[u8] = &[80, 111, 124, 113, 55, 237, 18, 5];
+    pub const TICK_ARRAY_BITMAP_EXTENSION: &[u8] = &[60, 150, 36, 219, 97, 128, 139, 153];
 }

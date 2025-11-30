@@ -236,7 +236,7 @@ pub fn tick_array_state_parser(
 pub const EXTENSION_TICKARRAY_BITMAP_SIZE: usize = 14;
 
 #[repr(C, packed)]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct TickArrayBitmapExtension {
     pub pool_id: Pubkey,
     /// Packed initialized tick array state for start_tick_index is positive
@@ -255,8 +255,7 @@ impl Default for TickArrayBitmapExtension {
     }
 }
 
-// 计算大小：Pubkey (32) + positive_bitmap (12 * 8 * 8) + negative_bitmap (12 * 8 * 8)
-pub const TICK_ARRAY_BITMAP_EXTENSION_SIZE: usize = 32 + (EXTENSION_TICKARRAY_BITMAP_SIZE * 8 * 64) + (EXTENSION_TICKARRAY_BITMAP_SIZE * 8 * 64);
+pub const TICK_ARRAY_BITMAP_EXTENSION_SIZE: usize = 32 + (EXTENSION_TICKARRAY_BITMAP_SIZE * 8 * 8) + (EXTENSION_TICKARRAY_BITMAP_SIZE * 8 * 8);
 
 pub fn tick_array_bitmap_extension_decode(data: &[u8]) -> Option<TickArrayBitmapExtension> {
     if data.len() < TICK_ARRAY_BITMAP_EXTENSION_SIZE {

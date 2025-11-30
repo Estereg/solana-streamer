@@ -15,6 +15,7 @@ use crate::streaming::event_parser::{
         meteora_dlmm::parser as meteora_dlmm, pumpfun::parser as pumpfun,
         pumpswap::parser as pumpswap, raydium_amm_v4::parser as raydium_amm_v4,
         raydium_clmm::parser as raydium_clmm, raydium_cpmm::parser as raydium_cpmm,
+        whirlpool::parser as whirlpool,
     },
     DexEvent, Protocol,
 };
@@ -56,6 +57,7 @@ impl EventDispatcher {
             Protocol::RaydiumAmmV4 => ProtocolType::RaydiumAmmV4,
             Protocol::MeteoraDammV2 => ProtocolType::MeteoraDammV2,
             Protocol::MeteoraDlmm => ProtocolType::MeteoraDlmm,
+            Protocol::Whirlpool => ProtocolType::Whirlpool,
         };
 
         match protocol {
@@ -105,6 +107,10 @@ impl EventDispatcher {
                 // Meteora DLMM 目前不需要解析指令数据，返回 None
                 None
             }
+            Protocol::Whirlpool => {
+                // Whirlpool 目前不需要解析指令数据，返回 None
+                None
+            }
         }
     }
 
@@ -136,6 +142,7 @@ impl EventDispatcher {
             Protocol::RaydiumAmmV4 => ProtocolType::RaydiumAmmV4,
             Protocol::MeteoraDammV2 => ProtocolType::MeteoraDammV2,
             Protocol::MeteoraDlmm => ProtocolType::MeteoraDlmm,
+            Protocol::Whirlpool => ProtocolType::Whirlpool,
         };
 
         match protocol {
@@ -178,6 +185,10 @@ impl EventDispatcher {
                 // Meteora DLMM 目前不需要解析 inner instruction 数据，返回 None
                 None
             }
+            Protocol::Whirlpool => {
+                // Whirlpool 目前不需要解析 inner instruction 数据，返回 None
+                None
+            }
         }
     }
 
@@ -200,6 +211,8 @@ impl EventDispatcher {
             Some(Protocol::MeteoraDammV2)
         } else if program_id == &meteora_dlmm::METEORA_DLMM_PROGRAM_ID {
             Some(Protocol::MeteoraDlmm)
+        } else if program_id == &whirlpool::WHIRLPOOL_PROGRAM_ID {
+            Some(Protocol::Whirlpool)
         } else {
             None
         }
@@ -239,6 +252,7 @@ impl EventDispatcher {
             Protocol::RaydiumAmmV4 => raydium_amm_v4::RAYDIUM_AMM_V4_PROGRAM_ID,
             Protocol::MeteoraDammV2 => meteora_damm_v2::METEORA_DAMM_V2_PROGRAM_ID,
             Protocol::MeteoraDlmm => meteora_dlmm::METEORA_DLMM_PROGRAM_ID,
+            Protocol::Whirlpool => whirlpool::WHIRLPOOL_PROGRAM_ID,
         }
     }
 
@@ -276,6 +290,7 @@ impl EventDispatcher {
             Protocol::RaydiumAmmV4 => ProtocolType::RaydiumAmmV4,
             Protocol::MeteoraDammV2 => ProtocolType::MeteoraDammV2,
             Protocol::MeteoraDlmm => ProtocolType::MeteoraDlmm,
+            Protocol::Whirlpool => ProtocolType::Whirlpool,
         };
 
         match protocol {
@@ -301,6 +316,9 @@ impl EventDispatcher {
             }
             Protocol::MeteoraDlmm => {
                 meteora_dlmm::parse_meteora_dlmm_account_data(discriminator, account, metadata)
+            }
+            Protocol::Whirlpool => {
+                whirlpool::parse_whirlpool_account_data(discriminator, account, metadata)
             }
         }
     }

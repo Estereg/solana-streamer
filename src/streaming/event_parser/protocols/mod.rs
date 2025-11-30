@@ -8,5 +8,6 @@ pub mod raydium_amm_v4;
 pub mod raydium_clmm;
 pub mod raydium_cpmm;
 pub mod types;
+pub mod whirlpool;
 pub use block::block_meta_event::BlockMetaEvent;
 pub use types::Protocol;
