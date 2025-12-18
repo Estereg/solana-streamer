@@ -94,7 +94,7 @@ pub struct VestingSchedule {
     pub allocated_share_amount: u64,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct PoolState {
     pub epoch: u64,
     pub auth_bump: u8,
@@ -122,6 +122,7 @@ pub struct PoolState {
     pub creator: Pubkey,
     pub token_program_flag: u8,
     pub amm_creator_fee_on: AmmFeeOn,
+    #[serde(with = "serde_big_array::BigArray")]
     pub padding: [u8; 62],
 }
 
@@ -220,16 +221,17 @@ pub struct BondingCurveParam {
     pub unlock_period: u64,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct PlatformCurveParam {
     pub epoch: u64,
     pub index: u8,
     pub global_config: Pubkey,
     pub bonding_curve_param: BondingCurveParam,
+    #[serde(with = "serde_big_array::BigArray")]
     pub padding: [u64; 50],
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct PlatformConfig {
     pub epoch: u64,
     pub platform_fee_wallet: Pubkey,
@@ -238,12 +240,16 @@ pub struct PlatformConfig {
     pub creator_scale: u64,
     pub burn_scale: u64,
     pub fee_rate: u64,
+    #[serde(with = "serde_big_array::BigArray")]
     pub name: [u8; 64],
+    #[serde(with = "serde_big_array::BigArray")]
     pub web: [u8; 256],
+    #[serde(with = "serde_big_array::BigArray")]
     pub img: [u8; 256],
     pub cpswap_config: Pubkey,
     pub creator_fee_rate: u64,
     pub transfer_fee_extension_auth: Pubkey,
+    #[serde(with = "serde_big_array::BigArray")]
     pub padding: [u8; 180],
     pub curve_params: Vec<PlatformCurveParam>,
 }
