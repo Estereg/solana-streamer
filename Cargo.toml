@@ -25,6 +25,7 @@ serde-big-array = "0.5.1"
 futures = "0.3.32"
 bincode = "1.3"
 anyhow = "1.0.102"
+bs58 = "0.5.1"
 yellowstone-grpc-client = {  version = "10.2.0" }
 yellowstone-grpc-proto = {  version = "10.1.1" }
 tokio = { version = "1.49.0", features = ["full", "rt-multi-thread"]}
