@@ -114,6 +114,7 @@ fn parse_trade_inner_instruction(data: &[u8], metadata: EventMetadata) -> Option
 /// 账户: 0: mint, 1: mint_authority, 2: bonding_curve, 3: associated_bonding_curve, 4: global,
 /// 5: mpl_token_metadata, 6: metadata_account, 7: user, 8: system_program, 9: token_program,
 /// 10: associated_token_program, 11: rent, 12: event_authority, 13: program.
+/// 共 14 个固定账户，不足时返回 None 避免越界。
 fn parse_create_token_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -121,7 +122,8 @@ fn parse_create_token_instruction(
 ) -> Option<DexEvent> {
     metadata.event_type = EventType::PumpFunCreateToken;
 
-    if data.len() < 16 || accounts.len() < 11 {
+    const CREATE_TOKEN_MIN_ACCOUNTS: usize = 14;
+    if data.len() < 16 || accounts.len() < CREATE_TOKEN_MIN_ACCOUNTS {
         return None;
     }
     let mut offset = 0;
@@ -189,6 +191,7 @@ fn parse_create_token_instruction(
 /// 账户: 0: mint, 1: mint_authority, 2: bonding_curve, 3: associated_bonding_curve, 4: global,
 /// 5: user, 6: system_program, 7: token_program, 8: associated_token_program, 9: mayhem_program_id,
 /// 10: global_params, 11: sol_vault, 12: mayhem_state, 13: mayhem_token_vault, 14: event_authority, 15: program.
+/// 共 16 个固定账户，不足时返回 None 避免越界。
 fn parse_create_v2_token_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -196,7 +199,8 @@ fn parse_create_v2_token_instruction(
 ) -> Option<DexEvent> {
     metadata.event_type = EventType::PumpFunCreateV2Token;
 
-    if data.len() < 16 || accounts.len() < 11 {
+    const CREATE_V2_MIN_ACCOUNTS: usize = 16;
+    if data.len() < 16 || accounts.len() < CREATE_V2_MIN_ACCOUNTS {
         return None;
     }
     let mut offset = 0;
