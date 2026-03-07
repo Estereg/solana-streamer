@@ -1,5 +1,4 @@
 use futures::{channel::mpsc, sink::Sink, Stream};
-use maplit::hashmap;
 use std::{collections::HashMap, time::Duration};
 use tonic::{transport::channel::ClientTlsConfig, Status};
 use yellowstone_grpc_client::{GeyserGrpcClient, Interceptor};
@@ -55,11 +54,11 @@ impl SubscriptionManager {
     )> {
         let blocks_meta =
             if event_type_filter.is_some() && event_type_filter.unwrap().include_block_event() {
-                hashmap! { "".to_owned() => SubscribeRequestFilterBlocksMeta {} }
+                HashMap::from([("".to_owned(), SubscribeRequestFilterBlocksMeta {})])
             } else if event_type_filter.is_none() {
-                hashmap! { "".to_owned() => SubscribeRequestFilterBlocksMeta {} }
+                HashMap::from([("".to_owned(), SubscribeRequestFilterBlocksMeta {})])
             } else {
-                hashmap! {}
+                HashMap::new()
             };
         let subscribe_request = SubscribeRequest {
             accounts: accounts.unwrap_or_default(),

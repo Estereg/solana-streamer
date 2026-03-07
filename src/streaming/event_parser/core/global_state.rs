@@ -179,8 +179,8 @@ impl Default for GlobalState {
 }
 
 /// Global state instance
-static GLOBAL_STATE: once_cell::sync::Lazy<GlobalState> =
-    once_cell::sync::Lazy::new(GlobalState::new);
+static GLOBAL_STATE: std::sync::LazyLock<GlobalState> =
+    std::sync::LazyLock::new(GlobalState::new);
 
 /// Get global state instance
 pub fn get_global_state() -> &'static GlobalState {

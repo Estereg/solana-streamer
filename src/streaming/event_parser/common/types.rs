@@ -36,9 +36,8 @@ impl EventMetadataPool {
 }
 
 // Global object pool instances
-lazy_static::lazy_static! {
-    pub static ref EVENT_METADATA_POOL: EventMetadataPool = EventMetadataPool::new();
-}
+pub static EVENT_METADATA_POOL: std::sync::LazyLock<EventMetadataPool> =
+    std::sync::LazyLock::new(EventMetadataPool::new);
 
 #[derive(
     Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, BorshSerialize, BorshDeserialize,
@@ -356,14 +355,13 @@ impl EventMetadata {
     }
 }
 
-lazy_static::lazy_static! {
-    static ref SOL_MINT: Pubkey = Pubkey::from_str("So11111111111111111111111111111111111111111").unwrap();
-    static ref SYSTEM_PROGRAMS: [Pubkey; 3] = [
-        Pubkey::from_str("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA").unwrap(),
-        Pubkey::from_str("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb").unwrap(),
-        Pubkey::from_str("11111111111111111111111111111111").unwrap(),
-    ];
-}
+static SOL_MINT: std::sync::LazyLock<Pubkey> =
+    std::sync::LazyLock::new(|| Pubkey::from_str("So11111111111111111111111111111111111111111").unwrap());
+static SYSTEM_PROGRAMS: std::sync::LazyLock<[Pubkey; 3]> = std::sync::LazyLock::new(|| [
+    Pubkey::from_str("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA").unwrap(),
+    Pubkey::from_str("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb").unwrap(),
+    Pubkey::from_str("11111111111111111111111111111111").unwrap(),
+]);
 
 /// Parse token transfer data from next instructions
 pub fn parse_swap_data_from_next_instructions(
