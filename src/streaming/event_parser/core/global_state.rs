@@ -49,16 +49,11 @@ impl GlobalState {
             return; // Another thread is cleaning up
         }
 
-        // Collect signatures to remove (random selection for simplicity)
-        let mut signatures_to_remove: Vec<Signature> = self.signature_data.iter()
+        // Collect only the batch we need to remove (avoid allocating full list)
+        let signatures_to_remove: Vec<Signature> = self.signature_data.iter()
+            .take(CLEANUP_BATCH_SIZE)
             .map(|entry| *entry.key())
             .collect();
-        
-        if signatures_to_remove.len() <= MAX_SIGNATURES {
-            return; // Race condition, already cleaned up
-        }
-        
-        signatures_to_remove.truncate(CLEANUP_BATCH_SIZE);
 
         // Remove old signatures atomically
         for signature in signatures_to_remove {

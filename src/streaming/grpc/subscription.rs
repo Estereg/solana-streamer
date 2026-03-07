@@ -85,7 +85,7 @@ impl SubscriptionManager {
         if event_type_filter.is_some() && !event_type_filter.unwrap().include_account_event() {
             return None;
         }
-        if account_filter.len() == 0 {
+        if account_filter.is_empty() {
             return None;
         }
         let mut accounts = HashMap::new();
