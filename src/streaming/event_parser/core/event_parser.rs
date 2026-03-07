@@ -39,7 +39,7 @@ impl EventParser {
         block_time: Option<Timestamp>,
         recv_us: i64,
         bot_wallet: Option<Pubkey>,
-        transaction_index: Option<u64>,
+        tx_index: Option<u64>,
         callback: Arc<dyn Fn(DexEvent) + Send + Sync>,
     ) -> anyhow::Result<()> {
         // 创建适配器回调，将所有权回调转换为引用回调
@@ -93,7 +93,7 @@ impl EventParser {
                     &accounts,
                     &inner_instructions,
                     bot_wallet,
-                    transaction_index,
+                    tx_index,
                     adapter_callback,
                 )
                 .await?;
@@ -119,7 +119,7 @@ impl EventParser {
         accounts: &[Pubkey],
         inner_instructions: &[InnerInstructions],
         bot_wallet: Option<Pubkey>,
-        transaction_index: Option<u64>,
+        tx_index: Option<u64>,
         callback: Arc<dyn Fn(DexEvent) + Send + Sync>,
     ) -> anyhow::Result<()> {
         // 创建适配器回调，将所有权回调转换为引用回调
@@ -159,7 +159,7 @@ impl EventParser {
                             index as i64,
                             None,
                             bot_wallet,
-                            transaction_index,
+                            tx_index,
                             inner_instructions,
                             adapter_callback.clone(),
                         )?;
@@ -181,7 +181,7 @@ impl EventParser {
                                 index as i64,
                                 Some(inner_index as i64),
                                 bot_wallet,
-                                transaction_index,
+                                tx_index,
                                 Some(&inner_instructions),
                                 adapter_callback.clone(),
                             )?;
@@ -213,7 +213,7 @@ impl EventParser {
         accounts: &[Pubkey],
         inner_instructions: &[yellowstone_grpc_proto::prelude::InnerInstructions],
         bot_wallet: Option<Pubkey>,
-        transaction_index: Option<u64>,
+        tx_index: Option<u64>,
         callback: Arc<dyn for<'a> Fn(&'a DexEvent) + Send + Sync>,
     ) -> anyhow::Result<()> {
         // 获取交易的指令和账户
@@ -248,7 +248,7 @@ impl EventParser {
                             index as i64,
                             None,
                             bot_wallet,
-                            transaction_index,
+                            tx_index,
                             inner_instructions,
                             callback.clone(),
                         )?;
@@ -278,7 +278,7 @@ impl EventParser {
                                 inner_instructions.index as i64,
                                 Some(inner_index as i64),
                                 bot_wallet,
-                                transaction_index,
+                                tx_index,
                                 Some(&inner_instructions),
                                 callback.clone(),
                             )?;
@@ -307,7 +307,7 @@ impl EventParser {
         outer_index: i64,
         inner_index: Option<i64>,
         bot_wallet: Option<Pubkey>,
-        transaction_index: Option<u64>,
+        tx_index: Option<u64>,
         inner_instructions: Option<&yellowstone_grpc_proto::prelude::InnerInstructions>,
         callback: Arc<dyn for<'a> Fn(&'a DexEvent) + Send + Sync>,
     ) -> anyhow::Result<()> {
@@ -346,7 +346,7 @@ impl EventParser {
             outer_index,
             inner_index,
             recv_us,
-            transaction_index,
+            tx_index,
         );
 
         if is_cu_program {
@@ -428,14 +428,7 @@ impl EventParser {
             }
         }
 
-        // 特殊处理: PumpFun MIGRATE 指令需要 inner instruction data
-        if matches!(protocol, Protocol::PumpFun) {
-            const PUMPFUN_MIGRATE_IX: &[u8] = &[155, 234, 231, 146, 236, 158, 162, 30];
-            if instruction_discriminator == PUMPFUN_MIGRATE_IX && inner_instruction_event.is_none()
-            {
-                return Ok(());
-            }
-        }
+        // PumpFun MIGRATE: 有 CPI 时合并 log；无 CPI 时仍发出仅含指令数据的事件。
 
         // 合并事件
         if let Some(inner_instruction_event) = inner_instruction_event {
@@ -471,7 +464,7 @@ impl EventParser {
         outer_index: i64,
         inner_index: Option<i64>,
         bot_wallet: Option<Pubkey>,
-        transaction_index: Option<u64>,
+        tx_index: Option<u64>,
         inner_instructions: Option<&InnerInstructions>,
         callback: Arc<dyn for<'a> Fn(&'a DexEvent) + Send + Sync>,
     ) -> anyhow::Result<()> {
@@ -511,7 +504,7 @@ impl EventParser {
             outer_index,
             inner_index,
             recv_us,
-            transaction_index,
+            tx_index,
         );
 
         if is_cu_program {
@@ -611,14 +604,7 @@ impl EventParser {
             }
         }
 
-        // 特殊处理: PumpFun MIGRATE 指令需要 inner instruction data
-        if matches!(protocol, Protocol::PumpFun) {
-            const PUMPFUN_MIGRATE_IX: &[u8] = &[155, 234, 231, 146, 236, 158, 162, 30];
-            if instruction_discriminator == PUMPFUN_MIGRATE_IX && inner_instruction_event.is_none()
-            {
-                return Ok(());
-            }
-        }
+        // PumpFun MIGRATE: 有 CPI 时合并 log；无 CPI（如 shred）仍发出仅含指令数据的事件。
 
         // 合并事件
         if let Some(inner_instruction_event) = inner_instruction_event {

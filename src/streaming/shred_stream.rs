@@ -51,12 +51,13 @@ impl ShredStreamGrpc {
                     Ok(msg) => {
                         if let Ok(entries) = bincode::deserialize::<Vec<Entry>>(&msg.entries) {
                             for entry in entries {
-                                for transaction in entry.transactions {
+                                for (tx_index, transaction) in entry.transactions.iter().enumerate() {
                                     let transaction_with_slot =
                                         factory::create_transaction_with_slot_pooled(
                                             transaction.clone(),
                                             msg.slot,
                                             get_high_perf_clock(),
+                                            Some(tx_index as u64),
                                         );
                                     // Process transaction - clone Arc and Vec for each call
                                     if let Err(e) = process_shred_transaction(

@@ -36,16 +36,36 @@ pub fn merge(instruction_event: &mut DexEvent, cpi_log_event: DexEvent) {
         },
         DexEvent::PumpFunCreateTokenEvent(e) => match cpi_log_event {
             DexEvent::PumpFunCreateV2TokenEvent(cpie) => {
-                e.mint = cpie.mint;
-                e.bonding_curve = cpie.bonding_curve;
-                e.user = cpie.user;
-                e.creator = cpie.creator;
-                e.timestamp = cpie.timestamp;
-                e.virtual_token_reserves = cpie.virtual_token_reserves;
-                e.virtual_sol_reserves = cpie.virtual_sol_reserves;
-                e.real_token_reserves = cpie.real_token_reserves;
-                e.token_total_supply = cpie.token_total_supply;
-                e.token_program = cpie.token_program;
+                if cpie.mint != solana_sdk::pubkey::Pubkey::default() {
+                    e.mint = cpie.mint;
+                }
+                if cpie.bonding_curve != solana_sdk::pubkey::Pubkey::default() {
+                    e.bonding_curve = cpie.bonding_curve;
+                }
+                if cpie.user != solana_sdk::pubkey::Pubkey::default() {
+                    e.user = cpie.user;
+                }
+                if cpie.creator != solana_sdk::pubkey::Pubkey::default() {
+                    e.creator = cpie.creator;
+                }
+                if cpie.timestamp != 0 {
+                    e.timestamp = cpie.timestamp;
+                }
+                if cpie.virtual_token_reserves != 0 {
+                    e.virtual_token_reserves = cpie.virtual_token_reserves;
+                }
+                if cpie.virtual_sol_reserves != 0 {
+                    e.virtual_sol_reserves = cpie.virtual_sol_reserves;
+                }
+                if cpie.real_token_reserves != 0 {
+                    e.real_token_reserves = cpie.real_token_reserves;
+                }
+                if cpie.token_total_supply != 0 {
+                    e.token_total_supply = cpie.token_total_supply;
+                }
+                if cpie.token_program != solana_sdk::pubkey::Pubkey::default() {
+                    e.token_program = cpie.token_program;
+                }
                 e.is_mayhem_mode = cpie.is_mayhem_mode;
                 e.is_cashback_enabled = cpie.is_cashback_enabled;
             }
@@ -53,16 +73,36 @@ pub fn merge(instruction_event: &mut DexEvent, cpi_log_event: DexEvent) {
         },
         DexEvent::PumpFunCreateV2TokenEvent(e) => match cpi_log_event {
             DexEvent::PumpFunCreateV2TokenEvent(cpie) => {
-                e.mint = cpie.mint;
-                e.bonding_curve = cpie.bonding_curve;
-                e.user = cpie.user;
-                e.creator = cpie.creator;
-                e.timestamp = cpie.timestamp;
-                e.virtual_token_reserves = cpie.virtual_token_reserves;
-                e.virtual_sol_reserves = cpie.virtual_sol_reserves;
-                e.real_token_reserves = cpie.real_token_reserves;
-                e.token_total_supply = cpie.token_total_supply;
-                e.token_program = cpie.token_program;
+                if cpie.mint != solana_sdk::pubkey::Pubkey::default() {
+                    e.mint = cpie.mint;
+                }
+                if cpie.bonding_curve != solana_sdk::pubkey::Pubkey::default() {
+                    e.bonding_curve = cpie.bonding_curve;
+                }
+                if cpie.user != solana_sdk::pubkey::Pubkey::default() {
+                    e.user = cpie.user;
+                }
+                if cpie.creator != solana_sdk::pubkey::Pubkey::default() {
+                    e.creator = cpie.creator;
+                }
+                if cpie.timestamp != 0 {
+                    e.timestamp = cpie.timestamp;
+                }
+                if cpie.virtual_token_reserves != 0 {
+                    e.virtual_token_reserves = cpie.virtual_token_reserves;
+                }
+                if cpie.virtual_sol_reserves != 0 {
+                    e.virtual_sol_reserves = cpie.virtual_sol_reserves;
+                }
+                if cpie.real_token_reserves != 0 {
+                    e.real_token_reserves = cpie.real_token_reserves;
+                }
+                if cpie.token_total_supply != 0 {
+                    e.token_total_supply = cpie.token_total_supply;
+                }
+                if cpie.token_program != solana_sdk::pubkey::Pubkey::default() {
+                    e.token_program = cpie.token_program;
+                }
                 e.is_mayhem_mode = cpie.is_mayhem_mode;
                 e.is_cashback_enabled = cpie.is_cashback_enabled;
             }

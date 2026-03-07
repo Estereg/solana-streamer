@@ -177,7 +177,7 @@ async fn get_single_transaction_details(signature_str: &str) -> Result<()> {
                 .unwrap()
                 .as_micros() as i64;
             let bot_wallet = None;
-            let transaction_index = None;
+            let tx_index = None;
 
             let protocols = vec![
                 Protocol::Bonk,
@@ -206,7 +206,7 @@ async fn get_single_transaction_details(signature_str: &str) -> Result<()> {
                 &accounts,
                 &inner_instructions_vec,
                 bot_wallet,
-                transaction_index,
+                tx_index,
                 callback,
             )
             .await?;

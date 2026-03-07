@@ -57,9 +57,9 @@ async fn test_shreds() -> Result<(), Box<dyn std::error::Error>> {
 fn create_event_callback() -> impl Fn(DexEvent) {
     |event: DexEvent| {
         println!(
-            "🎉 Event received! Type: {:?}, transaction_index: {:?}",
+            "🎉 Event received! Type: {:?}, tx_index: {:?}",
             event.metadata().event_type,
-            event.metadata().transaction_index
+            event.metadata().tx_index
         );
         match event {
             DexEvent::BlockMetaEvent(e) => {

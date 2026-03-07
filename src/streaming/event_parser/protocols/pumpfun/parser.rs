@@ -192,6 +192,8 @@ fn parse_create_token_instruction(
 /// 5: user, 6: system_program, 7: token_program, 8: associated_token_program, 9: mayhem_program_id,
 /// 10: global_params, 11: sol_vault, 12: mayhem_state, 13: mayhem_token_vault, 14: event_authority, 15: program.
 /// 共 16 个固定账户，不足时返回 None 避免越界。
+/// 注意：shredstream 路径仅传入 static_account_keys，若交易使用 Address Lookup Tables，
+/// 无法解析 loaded_addresses，部分账户会以 default 填充，导致 token_program/global 等错误。
 fn parse_create_v2_token_instruction(
     data: &[u8],
     accounts: &[Pubkey],

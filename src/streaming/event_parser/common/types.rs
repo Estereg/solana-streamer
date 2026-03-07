@@ -301,7 +301,7 @@ pub struct SwapData {
 pub struct EventMetadata {
     pub signature: Signature,
     pub slot: u64,
-    pub transaction_index: Option<u64>, // 新增：交易在slot中的索引
+    pub tx_index: Option<u64>, // 新增：交易在slot中的索引
     pub block_time: i64,
     pub block_time_ms: i64,
     pub recv_us: i64,
@@ -327,7 +327,7 @@ impl EventMetadata {
         outer_index: i64,
         inner_index: Option<i64>,
         recv_us: i64,
-        transaction_index: Option<u64>,
+        tx_index: Option<u64>,
     ) -> Self {
         Self {
             signature,
@@ -342,7 +342,7 @@ impl EventMetadata {
             swap_data: None,
             outer_index,
             inner_index,
-            transaction_index,
+            tx_index,
         }
     }
 

@@ -276,7 +276,7 @@ impl PooledTransactionPretty {
         let tx = tx_update.transaction.expect("should be defined");
 
         self.transaction.slot = tx_update.slot;
-        self.transaction.transaction_index = Some(tx.index);
+        self.transaction.tx_index = Some(tx.index);
         self.transaction.block_time = block_time;
         self.transaction.block_hash.clear(); // 重置 block_hash
         self.transaction.signature =
