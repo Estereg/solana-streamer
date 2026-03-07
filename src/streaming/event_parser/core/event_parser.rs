@@ -82,6 +82,11 @@ impl EventParser {
                     .collect();
                 // 解析指令事件
                 let instructions = &message.instructions;
+                let recent_blockhash = if message.recent_blockhash.is_empty() {
+                    None
+                } else {
+                    Some(message.recent_blockhash.clone())
+                };
                 Self::parse_instruction_events_from_grpc_transaction(
                     protocols,
                     event_type_filter,
@@ -94,6 +99,7 @@ impl EventParser {
                     &inner_instructions,
                     bot_wallet,
                     tx_index,
+                    recent_blockhash,
                     adapter_callback,
                 )
                 .await?;
@@ -128,6 +134,7 @@ impl EventParser {
         });
         // 获取交易的指令和账户
         let compiled_instructions = transaction.message.instructions();
+        let recent_blockhash = Some(transaction.message.recent_blockhash().to_bytes().to_vec());
         let mut accounts: Vec<Pubkey> = accounts.to_vec();
         // 检查交易中是否包含程序
         let has_program = accounts
@@ -160,6 +167,7 @@ impl EventParser {
                             None,
                             bot_wallet,
                             tx_index,
+                            recent_blockhash.as_deref(),
                             inner_instructions,
                             adapter_callback.clone(),
                         )?;
@@ -182,6 +190,7 @@ impl EventParser {
                                 Some(inner_index as i64),
                                 bot_wallet,
                                 tx_index,
+                                recent_blockhash.as_deref(),
                                 Some(&inner_instructions),
                                 adapter_callback.clone(),
                             )?;
@@ -214,6 +223,7 @@ impl EventParser {
         inner_instructions: &[yellowstone_grpc_proto::prelude::InnerInstructions],
         bot_wallet: Option<Pubkey>,
         tx_index: Option<u64>,
+        recent_blockhash: Option<Vec<u8>>,
         callback: Arc<dyn for<'a> Fn(&'a DexEvent) + Send + Sync>,
     ) -> anyhow::Result<()> {
         // 获取交易的指令和账户
@@ -249,6 +259,7 @@ impl EventParser {
                             None,
                             bot_wallet,
                             tx_index,
+                            recent_blockhash.as_deref(),
                             inner_instructions,
                             callback.clone(),
                         )?;
@@ -279,6 +290,7 @@ impl EventParser {
                                 Some(inner_index as i64),
                                 bot_wallet,
                                 tx_index,
+                                recent_blockhash.as_deref(),
                                 Some(&inner_instructions),
                                 callback.clone(),
                             )?;
@@ -308,6 +320,7 @@ impl EventParser {
         inner_index: Option<i64>,
         bot_wallet: Option<Pubkey>,
         tx_index: Option<u64>,
+        recent_blockhash: Option<&[u8]>,
         inner_instructions: Option<&yellowstone_grpc_proto::prelude::InnerInstructions>,
         callback: Arc<dyn for<'a> Fn(&'a DexEvent) + Send + Sync>,
     ) -> anyhow::Result<()> {
@@ -347,6 +360,7 @@ impl EventParser {
             inner_index,
             recv_us,
             tx_index,
+            recent_blockhash.map(|s| s.to_vec()),
         );
 
         if is_cu_program {
@@ -465,6 +479,7 @@ impl EventParser {
         inner_index: Option<i64>,
         bot_wallet: Option<Pubkey>,
         tx_index: Option<u64>,
+        recent_blockhash: Option<&[u8]>,
         inner_instructions: Option<&InnerInstructions>,
         callback: Arc<dyn for<'a> Fn(&'a DexEvent) + Send + Sync>,
     ) -> anyhow::Result<()> {
@@ -505,6 +520,7 @@ impl EventParser {
             inner_index,
             recv_us,
             tx_index,
+            recent_blockhash.map(|s| s.to_vec()),
         );
 
         if is_cu_program {

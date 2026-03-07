@@ -312,6 +312,9 @@ pub struct EventMetadata {
     pub swap_data: Option<SwapData>,
     pub outer_index: i64,
     pub inner_index: Option<i64>,
+    /// Transaction message recent blockhash (32 bytes), when available.
+    #[serde(default)]
+    pub recent_blockhash: Option<Vec<u8>>,
 }
 
 impl EventMetadata {
@@ -328,6 +331,7 @@ impl EventMetadata {
         inner_index: Option<i64>,
         recv_us: i64,
         tx_index: Option<u64>,
+        recent_blockhash: Option<Vec<u8>>,
     ) -> Self {
         Self {
             signature,
@@ -343,6 +347,7 @@ impl EventMetadata {
             outer_index,
             inner_index,
             tx_index,
+            recent_blockhash,
         }
     }
 
