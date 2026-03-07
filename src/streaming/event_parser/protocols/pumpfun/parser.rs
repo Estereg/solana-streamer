@@ -111,6 +111,9 @@ fn parse_trade_inner_instruction(data: &[u8], metadata: EventMetadata) -> Option
 }
 
 /// 解析创建代币指令事件
+/// 账户: 0: mint, 1: mint_authority, 2: bonding_curve, 3: associated_bonding_curve, 4: global,
+/// 5: mpl_token_metadata, 6: metadata_account, 7: user, 8: system_program, 9: token_program,
+/// 10: associated_token_program, 11: rent, 12: event_authority, 13: program.
 fn parse_create_token_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -183,6 +186,9 @@ fn parse_create_token_instruction(
 }
 
 /// 解析创建 V2 代币指令事件 (SPL-22 Token, Mayhem Mode)
+/// 账户: 0: mint, 1: mint_authority, 2: bonding_curve, 3: associated_bonding_curve, 4: global,
+/// 5: user, 6: system_program, 7: token_program, 8: associated_token_program, 9: mayhem_program_id,
+/// 10: global_params, 11: sol_vault, 12: mayhem_state, 13: mayhem_token_vault, 14: event_authority, 15: program.
 fn parse_create_v2_token_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -256,7 +262,12 @@ fn parse_create_v2_token_instruction(
     }))
 }
 
-// 解析买入指令事件
+/// 解析买入指令事件
+/// Buy 指令共 16 个固定账户（与 idl/pumpfun.json 一致）:
+/// 0: global, 1: fee_recipient, 2: mint, 3: bonding_curve, 4: associated_bonding_curve,
+/// 5: associated_user, 6: user, 7: system_program, 8: token_program, 9: creator_vault,
+/// 10: event_authority, 11: program, 12: global_volume_accumulator, 13: user_volume_accumulator,
+/// 14: fee_config, 15: fee_program.
 fn parse_buy_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -295,9 +306,11 @@ fn parse_buy_instruction(
 }
 
 /// 解析 buy_exact_sol_in 指令事件
-/// 注意：参数顺序与 buy 指令不同
-/// buy_exact_sol_in: spendable_sol_in (SOL), min_tokens_out (token)
-/// buy: amount (token), max_sol_cost (SOL)
+/// 账户布局与 buy 相同，共 16 个固定账户: 0: global, 1: fee_recipient, 2: mint, 3: bonding_curve,
+/// 4: associated_bonding_curve, 5: associated_user, 6: user, 7: system_program, 8: token_program,
+/// 9: creator_vault, 10: event_authority, 11: program, 12: global_volume_accumulator,
+/// 13: user_volume_accumulator, 14: fee_config, 15: fee_program.
+/// 参数顺序与 buy 不同: spendable_sol_in (SOL), min_tokens_out (token).
 fn parse_buy_exact_sol_in_instruction(
     data: &[u8], accounts: &[Pubkey],
     mut metadata: EventMetadata,
@@ -337,7 +350,12 @@ fn parse_buy_exact_sol_in_instruction(
     }))
 }
 
-// 解析卖出指令事件
+/// 解析卖出指令事件
+/// Sell 指令共 14 个固定账户（与 idl/pumpfun.json 一致）:
+/// 0: global, 1: fee_recipient, 2: mint, 3: bonding_curve, 4: associated_bonding_curve,
+/// 5: associated_user, 6: user, 7: system_program, 8: creator_vault, 9: token_program,
+/// 10: event_authority, 11: program, 12: fee_config, 13: fee_program.
+/// remaining_accounts 可能含 user_volume_accumulator（返现）等。
 fn parse_sell_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -376,6 +394,11 @@ fn parse_sell_instruction(
 }
 
 /// 解析迁移指令事件
+/// 共 24 个固定账户: 0: global, 1: withdraw_authority, 2: mint, 3: bonding_curve, 4: associated_bonding_curve,
+/// 5: user, 6: system_program, 7: token_program, 8: pump_amm, 9: pool, 10: pool_authority,
+/// 11: pool_authority_mint_account, 12: pool_authority_wsol_account, 13: amm_global_config, 14: wsol_mint,
+/// 15: lp_mint, 16: user_pool_token_account, 17: pool_base_token_account, 18: pool_quote_token_account,
+/// 19: token_2022_program, 20: associated_token_program, 21: pump_amm_event_authority, 22: event_authority, 23: program.
 fn parse_migrate_instruction(
     _data: &[u8],
     accounts: &[Pubkey],

@@ -390,59 +390,41 @@ impl EventParser {
 
         // 处理 inner instructions - 查找对应的 CPI log 进行 merge
         // 当 inner_index 有值时，只查找索引大于当前 inner_index 的 CPI log
+        // 超低延迟：顺序执行，避免 thread::scope 的 spawn/join 开销
         let mut inner_instruction_event: Option<DexEvent> = None;
         if let Some(inner_instructions_ref) = inner_instructions {
             let current_inner_idx = inner_index.unwrap_or(-1) as i32;
-            
-            // 并行执行两个任务: 解析 inner event 和提取 swap_data
-            let (inner_event_result, swap_data_result) = std::thread::scope(|s| {
-                let inner_event_handle = s.spawn(|| {
-                    for (idx, inner_instruction) in inner_instructions_ref.instructions.iter().enumerate() {
-                        // 只查找索引大于当前 inner_index 的 CPI log
-                        if (idx as i32) <= current_inner_idx {
-                            continue;
-                        }
-                        
-                        let inner_data = &inner_instruction.data;
-                        // 检查长度（需要 16 字节的 discriminator）
-                        if inner_data.len() < 16 {
-                            continue;
-                        }
-                        let inner_discriminator = &inner_data[..16];
-                        let inner_instruction_data = &inner_data[16..];
 
-                        if let Some(inner_event) = EventDispatcher::dispatch_inner_instruction(
-                            protocol.clone(),
-                            inner_discriminator,
-                            inner_instruction_data,
-                            metadata.clone(),
-                        ) {
-                            return Some(inner_event);
-                        }
-                    }
-                    None
-                });
+            for (idx, inner_instruction) in inner_instructions_ref.instructions.iter().enumerate() {
+                if (idx as i32) <= current_inner_idx {
+                    continue;
+                }
+                let inner_data = &inner_instruction.data;
+                if inner_data.len() < 16 {
+                    continue;
+                }
+                let inner_discriminator = &inner_data[..16];
+                let inner_instruction_data = &inner_data[16..];
+                if let Some(inner_event) = EventDispatcher::dispatch_inner_instruction(
+                    protocol.clone(),
+                    inner_discriminator,
+                    inner_instruction_data,
+                    metadata.clone(),
+                ) {
+                    inner_instruction_event = Some(inner_event);
+                    break;
+                }
+            }
 
-                let swap_data_handle = s.spawn(|| {
-                    if event.metadata().swap_data.is_none() {
-                        parse_swap_data_from_next_grpc_instructions(
-                            &event,
-                            inner_instructions_ref,
-                            current_inner_idx as i8,
-                            accounts,
-                        )
-                    } else {
-                        None
-                    }
-                });
-
-                // 等待两个任务完成
-                (inner_event_handle.join().unwrap(), swap_data_handle.join().unwrap())
-            });
-
-            inner_instruction_event = inner_event_result;
-            if let Some(swap_data) = swap_data_result {
-                event.metadata_mut().set_swap_data(swap_data);
+            if event.metadata().swap_data.is_none() {
+                if let Some(swap_data) = parse_swap_data_from_next_grpc_instructions(
+                    &event,
+                    inner_instructions_ref,
+                    current_inner_idx as i8,
+                    accounts,
+                ) {
+                    event.metadata_mut().set_swap_data(swap_data);
+                }
             }
         }
 

@@ -130,6 +130,13 @@ fn parse_withdraw_inner_instruction(data: &[u8], metadata: EventMetadata) -> Opt
 }
 
 /// 解析买入指令事件
+/// Buy 指令共 23 个固定账户（与 idl/pump_amm.json 一致）:
+/// 0: pool, 1: user, 2: global_config, 3: base_mint, 4: quote_mint, 5: user_base_token_account,
+/// 6: user_quote_token_account, 7: pool_base_token_account, 8: pool_quote_token_account,
+/// 9: protocol_fee_recipient, 10: protocol_fee_recipient_token_account, 11: base_token_program,
+/// 12: quote_token_program, 13: system_program, 14: associated_token_program, 15: event_authority,
+/// 16: program, 17: coin_creator_vault_ata, 18: coin_creator_vault_authority,
+/// 19: global_volume_accumulator, 20: user_volume_accumulator, 21: fee_config, 22: fee_program.
 fn parse_buy_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -167,9 +174,8 @@ fn parse_buy_instruction(
 }
 
 /// 解析 buy_exact_quote_in 指令事件
-/// 注意：参数顺序与 buy 指令不同
-/// buy_exact_quote_in: spendable_quote_in (SOL), min_base_amount_out (token)
-/// buy: base_amount_out (token), max_quote_amount_in (SOL)
+/// 账户布局与 buy 相同，共 23 个固定账户（0–22，17/18 为 coin_creator_vault_ata / coin_creator_vault_authority）。
+/// 参数顺序与 buy 不同: spendable_quote_in (SOL), min_base_amount_out (token).
 fn parse_buy_exact_quote_in_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -208,6 +214,12 @@ fn parse_buy_exact_quote_in_instruction(
 }
 
 /// 解析卖出指令事件
+/// Sell 指令共 21 个固定账户（与 idl/pump_amm.json 一致）:
+/// 0: pool, 1: user, 2: global_config, 3: base_mint, 4: quote_mint, 5: user_base_token_account,
+/// 6: user_quote_token_account, 7: pool_base_token_account, 8: pool_quote_token_account,
+/// 9: protocol_fee_recipient, 10: protocol_fee_recipient_token_account, 11: base_token_program,
+/// 12: quote_token_program, 13: system_program, 14: associated_token_program, 15: event_authority,
+/// 16: program, 17: coin_creator_vault_ata, 18: coin_creator_vault_authority, 19: fee_config, 20: fee_program.
 fn parse_sell_instruction(
     data: &[u8],
     accounts: &[Pubkey],
