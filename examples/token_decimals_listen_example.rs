@@ -40,7 +40,10 @@ async fn test_grpc() -> Result<(), Box<dyn std::error::Error>> {
     let transaction_filter =
         TransactionFilter { account_include, account_exclude, account_required };
 
-    let account_to_listen = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v".to_string();
+    let account_to_listen = std::env::var("MINT_ACCOUNT").unwrap_or_else(|_| {
+        eprintln!("Usage: MINT_ACCOUNT=<pubkey> cargo run --example token_decimals_listen_example --release");
+        std::process::exit(1);
+    });
 
     // Listen to account data belonging to owner programs -> account event monitoring
     let account_filter =
@@ -79,7 +82,7 @@ async fn test_grpc() -> Result<(), Box<dyn std::error::Error>> {
 fn create_event_callback() -> impl Fn(DexEvent) {
     |event: DexEvent| match event {
         DexEvent::TokenInfoEvent(e) => {
-            println!("TokenInfoEvent: {:?}", e.decimals);
+            println!("TokenInfo pubkey={} decimals={} supply={}", e.pubkey, e.decimals, e.supply);
         }
         _ => {}
     }
