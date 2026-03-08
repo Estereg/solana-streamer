@@ -10,13 +10,13 @@ use crate::streaming::event_parser::{
 };
 use solana_sdk::pubkey::Pubkey;
 
-/// Meteora DAMM v2 程序ID
+/// Meteora DAMM v2 Program ID
 pub const METEORA_DAMM_V2_PROGRAM_ID: Pubkey =
     solana_sdk::pubkey!("cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG");
 
-/// 解析 Meteora DAMM v2 instruction data
+/// Parse Meteora DAMM v2 instruction data
 ///
-/// 根据判别器路由到具体的 instruction 解析函数
+/// Routes to specific instruction parsing functions based on the discriminator
 pub fn parse_meteora_damm_v2_instruction_data(
     discriminator: &[u8],
     data: &[u8],
@@ -39,9 +39,9 @@ pub fn parse_meteora_damm_v2_instruction_data(
     }
 }
 
-/// 解析 Meteora DAMM v2 inner instruction data (CPI events)
+/// Parse Meteora DAMM v2 inner instruction data (CPI events)
 ///
-/// 根据判别器路由到具体的 inner instruction 解析函数
+/// Routes to specific inner instruction parsing functions based on the discriminator
 pub fn parse_meteora_damm_v2_inner_instruction_data(
     discriminator: &[u8],
     data: &[u8],
@@ -56,7 +56,7 @@ pub fn parse_meteora_damm_v2_inner_instruction_data(
     }
 }
 
-/// 解析 swap 指令
+/// Parse swap instruction
 fn parse_swap_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -68,7 +68,7 @@ fn parse_swap_instruction(
         return None;
     }
 
-    // 跳过 discriminator (8 bytes)
+    // Skip discriminator (8 bytes)
     let amount_in = u64::from_le_bytes(data[0..8].try_into().unwrap());
     let minimum_amount_out = u64::from_le_bytes(data[8..16].try_into().unwrap());
 
@@ -94,7 +94,7 @@ fn parse_swap_instruction(
     }))
 }
 
-/// 解析 swap2 指令
+/// Parse swap2 instruction
 fn parse_swap2_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -106,12 +106,12 @@ fn parse_swap2_instruction(
         return None;
     }
 
-    // 跳过 discriminator (8 bytes)
+    // Skip discriminator (8 bytes)
     let amount_0 = u64::from_le_bytes(data[0..8].try_into().unwrap());
     let amount_1 = u64::from_le_bytes(data[8..16].try_into().unwrap());
     let swap_mode = data[16];
 
-    // swap2 可能有 15 个账户(带 referral)或 14 个账户
+    // swap2 may have 15 accounts (with referral) or 14 accounts
     let has_referral = accounts.len() >= 15;
 
     Some(DexEvent::MeteoraDammV2Swap2Event(MeteoraDammV2Swap2Event {
@@ -143,7 +143,7 @@ fn parse_swap2_instruction(
     }))
 }
 
-/// 解析 initialize_pool 指令
+/// Parse initialize_pool instruction
 fn parse_initialize_pool_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -155,23 +155,23 @@ fn parse_initialize_pool_instruction(
         return None;
     }
 
-    // 解析 instruction data (不包含 discriminator，已被调用者移除)
-    // 结构: liquidity (u128 = 16 bytes) + sqrt_price (u128 = 16 bytes) + activation_point (Option<u64> = 1 + 8 bytes)
+    // Parse instruction data (discriminator already removed)
+    // Layout: liquidity (u128) + sqrt_price (u128) + activation_point (Option<u64>)
     if data.len() < 33 {
         return None;
     }
 
     let mut offset = 0;
 
-    // 读取 liquidity (u128)
+    // Read liquidity (u128)
     let liquidity = u128::from_le_bytes(data[offset..offset + 16].try_into().ok()?);
     offset += 16;
 
-    // 读取 sqrt_price (u128)
+    // Read sqrt_price (u128)
     let sqrt_price = u128::from_le_bytes(data[offset..offset + 16].try_into().ok()?);
     offset += 16;
 
-    // 读取 activation_point (Option<u64>)
+    // Read activation_point (Option<u64>)
     let option_tag = data[offset];
     offset += 1;
     let _activation_point = if option_tag == 1 && data.len() >= offset + 8 {
@@ -207,7 +207,7 @@ fn parse_initialize_pool_instruction(
     }))
 }
 
-/// 解析 initialize_customizable_pool 指令
+/// Parse initialize_customizable_pool instruction
 fn parse_initialize_customizable_pool_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -219,59 +219,59 @@ fn parse_initialize_customizable_pool_instruction(
         return None;
     }
 
-    // 解析 instruction data (不包含 discriminator)
-    // 结构: PoolFeeParameters + sqrt_min_price + sqrt_max_price + has_alpha_vault + liquidity + sqrt_price + activation_type + collect_fee_mode + activation_point
+    // Parse instruction data (discriminator already removed)
+    // Layout: PoolFeeParameters + sqrt_min_price + sqrt_max_price + has_alpha_vault + liquidity + sqrt_price + activation_type + collect_fee_mode + activation_point
     if data.len() < 99 {
         return None;
     }
 
     let mut offset = 0;
 
-    // 解析 PoolFeeParameters
+    // Parse PoolFeeParameters
     use crate::streaming::event_parser::protocols::meteora_damm_v2::PoolFeeParameters;
     use borsh::BorshDeserialize;
 
     // PoolFeeParameters size: 8 + 2 + 8 + 8 + 1 + 3 + 1 + (optional DynamicFee)
-    // 先读取前 31 bytes (不包含 dynamic_fee option tag)
+    // Read first 31 bytes (excluding dynamic_fee option tag)
     let pool_fees = PoolFeeParameters::deserialize(&mut &data[offset..]).ok()?;
 
-    // 计算 pool_fees 消耗的字节数
-    // BaseFee: 8 + 2 + 8 + 8 + 1 = 27 bytes
+    // Calculate bytes consumed by pool_fees
+    // BaseFee calculation details (for internal tracing)
     // padding: 3 bytes
     // option tag: 1 byte
-    // 如果 dynamic_fee 存在: 2 + 16 + 2 + 2 + 2 + 4 + 4 = 32 bytes
+    // If dynamic_fee exists: 2 + 16 + 2 + 2 + 2 + 4 + 4 = 32 bytes
     let pool_fees_size = 31 + if pool_fees.dynamic_fee.is_some() { 32 } else { 0 };
     offset += pool_fees_size;
 
-    // 读取 sqrt_min_price (u128)
+    // Read sqrt_min_price (u128)
     let sqrt_min_price = u128::from_le_bytes(data[offset..offset + 16].try_into().ok()?);
     offset += 16;
 
-    // 读取 sqrt_max_price (u128)
+    // Read sqrt_max_price (u128)
     let sqrt_max_price = u128::from_le_bytes(data[offset..offset + 16].try_into().ok()?);
     offset += 16;
 
-    // 读取 has_alpha_vault (bool)
+    // Read has_alpha_vault (bool)
     let _has_alpha_vault = data[offset];
     offset += 1;
 
-    // 读取 liquidity (u128)
+    // Read liquidity (u128)
     let liquidity = u128::from_le_bytes(data[offset..offset + 16].try_into().ok()?);
     offset += 16;
 
-    // 读取 sqrt_price (u128)
+    // Read sqrt_price (u128)
     let sqrt_price = u128::from_le_bytes(data[offset..offset + 16].try_into().ok()?);
     offset += 16;
 
-    // 读取 activation_type (u8)
+    // Read activation_type (u8)
     let activation_type = data[offset];
     offset += 1;
 
-    // 读取 collect_fee_mode (u8)
+    // Read collect_fee_mode (u8)
     let collect_fee_mode = data[offset];
     offset += 1;
 
-    // 读取 activation_point (Option<u64>)
+    // Read activation_point (Option<u64>)
     let option_tag = data[offset];
     let _activation_point = if option_tag == 1 && data.len() >= offset + 9 {
         Some(u64::from_le_bytes(data[offset + 1..offset + 9].try_into().ok()?))
@@ -314,7 +314,7 @@ fn parse_initialize_customizable_pool_instruction(
     ))
 }
 
-/// 解析 initialize_pool_with_dynamic_config 指令
+/// Parse initialize_pool_with_dynamic_config instruction
 fn parse_initialize_pool_with_dynamic_config_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -332,49 +332,49 @@ fn parse_initialize_pool_with_dynamic_config_instruction(
 
     let mut offset = 0;
 
-    // 解析 PoolFeeParameters
+    // Parse PoolFeeParameters
     use crate::streaming::event_parser::protocols::meteora_damm_v2::PoolFeeParameters;
     use borsh::BorshDeserialize;
 
     let pool_fees = PoolFeeParameters::deserialize(&mut &data[offset..]).ok()?;
 
-    // 计算 pool_fees 消耗的字节数
+    // Calculate bytes consumed by pool_fees
     // BaseFee: 8 + 2 + 8 + 8 + 1 = 27 bytes
     // padding: 3 bytes
     // option tag: 1 byte
-    // 如果 dynamic_fee 存在: 2 + 16 + 2 + 2 + 2 + 4 + 4 = 32 bytes
+    // If dynamic_fee exists: 2 + 16 + 2 + 2 + 2 + 4 + 4 = 32 bytes
     let pool_fees_size = 31 + if pool_fees.dynamic_fee.is_some() { 32 } else { 0 };
     offset += pool_fees_size;
 
-    // 读取 sqrt_min_price (u128)
+    // Read sqrt_min_price (u128)
     let sqrt_min_price = u128::from_le_bytes(data[offset..offset + 16].try_into().ok()?);
     offset += 16;
 
-    // 读取 sqrt_max_price (u128)
+    // Read sqrt_max_price (u128)
     let sqrt_max_price = u128::from_le_bytes(data[offset..offset + 16].try_into().ok()?);
     offset += 16;
 
-    // 读取 has_alpha_vault (bool)
+    // Read has_alpha_vault (bool)
     let _has_alpha_vault = data[offset];
     offset += 1;
 
-    // 读取 liquidity (u128)
+    // Read liquidity (u128)
     let liquidity = u128::from_le_bytes(data[offset..offset + 16].try_into().ok()?);
     offset += 16;
 
-    // 读取 sqrt_price (u128)
+    // Read sqrt_price (u128)
     let sqrt_price = u128::from_le_bytes(data[offset..offset + 16].try_into().ok()?);
     offset += 16;
 
-    // 读取 activation_type (u8)
+    // Read activation_type (u8)
     let activation_type = data[offset];
     offset += 1;
 
-    // 读取 collect_fee_mode (u8)
+    // Read collect_fee_mode (u8)
     let collect_fee_mode = data[offset];
     offset += 1;
 
-    // 读取 activation_point (Option<u64>)
+    // Read activation_point (Option<u64>)
     let option_tag = data[offset];
     let _activation_point = if option_tag == 1 && data.len() >= offset + 9 {
         Some(u64::from_le_bytes(data[offset + 1..offset + 9].try_into().ok()?))
@@ -418,7 +418,7 @@ fn parse_initialize_pool_with_dynamic_config_instruction(
     ))
 }
 
-/// 解析 swap inner instruction (CPI event)
+/// Parse swap inner instruction (CPI event)
 fn parse_swap_inner_instruction(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
     if let Some(event) = meteora_damm_v2_swap_event_decode(data) {
         Some(DexEvent::MeteoraDammV2SwapEvent(MeteoraDammV2SwapEvent { metadata, ..event }))
@@ -427,7 +427,7 @@ fn parse_swap_inner_instruction(data: &[u8], metadata: EventMetadata) -> Option<
     }
 }
 
-/// 解析 initialize pool inner instruction (CPI event)
+/// Parse initialize pool inner instruction (CPI event)
 fn parse_initialize_pool_inner_instruction(
     data: &[u8],
     mut metadata: EventMetadata,

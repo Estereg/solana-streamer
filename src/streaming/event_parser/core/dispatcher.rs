@@ -1,11 +1,11 @@
-//! 中心事件解析调度器
+//! Central event dispatch router
 //!
-//! 根据协议类型路由到对应的解析函数，替代原有的静态 CONFIGS 数组架构
+//! Routes parsing requests to protocol-specific parsers based on protocol type.
 //!
-//! ## 设计原则
-//! - **单一职责**: 每个函数只负责一件事（路由、解析、合并分离）
-//! - **灵活性**: 调用方可以选择是否合并，或自定义合并逻辑
-//! - **可测试性**: 每个函数都可以独立测试
+//! ## Design Principles
+//! - **Single responsibility**: Each function does one thing (routing, parsing, merge separation)
+//! - **Flexibility**: Callers can choose whether to merge or use custom merge logic
+//! - **Testability**: Each function can be tested independently
 
 use crate::streaming::event_parser::{
     common::EventMetadata,
@@ -19,23 +19,23 @@ use crate::streaming::event_parser::{
 };
 use solana_sdk::pubkey::Pubkey;
 
-/// 中心事件解析调度器
+/// Central event dispatch router
 ///
-/// 负责将解析请求路由到对应协议的解析函数
+/// Routes parsing requests to protocol-specific parser functions
 pub struct EventDispatcher;
 
 impl EventDispatcher {
-    /// 解析 instruction 事件（只解析，不合并）
+    /// Parse instruction event (parse only, no merge)
     ///
-    /// # 参数
-    /// - `protocol`: 协议类型
-    /// - `instruction_discriminator`: 指令判别器 (8 bytes)
-    /// - `instruction_data`: 指令数据
-    /// - `accounts`: 账户公钥列表
-    /// - `metadata`: 事件元数据
+    /// # Arguments
+    /// - `protocol`: Protocol type
+    /// - `instruction_discriminator`: Instruction discriminator (8 bytes)
+    /// - `instruction_data`: Instruction data
+    /// - `accounts`: Account pubkey list
+    /// - `metadata`: Event metadata
     ///
-    /// # 返回
-    /// 解析成功返回 `Some(DexEvent)`，否则返回 `None`
+    /// # Returns
+    /// `Some(DexEvent)` on success, `None` otherwise
     #[inline]
     pub fn dispatch_instruction(
         protocol: Protocol,
@@ -44,17 +44,7 @@ impl EventDispatcher {
         accounts: &[Pubkey],
         mut metadata: EventMetadata,
     ) -> Option<DexEvent> {
-        // 根据协议类型设置 metadata.protocol
-        use crate::streaming::event_parser::common::ProtocolType;
-        metadata.protocol = match protocol {
-            Protocol::PumpFun => ProtocolType::PumpFun,
-            Protocol::PumpSwap => ProtocolType::PumpSwap,
-            Protocol::Bonk => ProtocolType::Bonk,
-            Protocol::RaydiumCpmm => ProtocolType::RaydiumCpmm,
-            Protocol::RaydiumClmm => ProtocolType::RaydiumClmm,
-            Protocol::RaydiumAmmV4 => ProtocolType::RaydiumAmmV4,
-            Protocol::MeteoraDammV2 => ProtocolType::MeteoraDammV2,
-        };
+        metadata.protocol = protocol.into();
 
         match protocol {
             Protocol::PumpFun => pumpfun::parse_pumpfun_instruction_data(
@@ -102,16 +92,16 @@ impl EventDispatcher {
         }
     }
 
-    /// 解析 inner instruction 事件（只解析，不合并）
+    /// Parse inner instruction event (parse only, no merge)
     ///
-    /// # 参数
-    /// - `protocol`: 协议类型
-    /// - `inner_instruction_discriminator`: 内联指令判别器 (16 bytes)
-    /// - `inner_instruction_data`: 内联指令数据
-    /// - `metadata`: 事件元数据
+    /// # Arguments
+    /// - `protocol`: Protocol type
+    /// - `inner_instruction_discriminator`: Inner instruction discriminator (16 bytes)
+    /// - `inner_instruction_data`: Inner instruction data
+    /// - `metadata`: Event metadata
     ///
-    /// # 返回
-    /// 解析成功返回 `Some(DexEvent)`，否则返回 `None`
+    /// # Returns
+    /// `Some(DexEvent)` on success, `None` otherwise
     #[inline]
     pub fn dispatch_inner_instruction(
         protocol: Protocol,
@@ -119,17 +109,7 @@ impl EventDispatcher {
         inner_instruction_data: &[u8],
         mut metadata: EventMetadata,
     ) -> Option<DexEvent> {
-        // 根据协议类型设置 metadata.protocol
-        use crate::streaming::event_parser::common::ProtocolType;
-        metadata.protocol = match protocol {
-            Protocol::PumpFun => ProtocolType::PumpFun,
-            Protocol::PumpSwap => ProtocolType::PumpSwap,
-            Protocol::Bonk => ProtocolType::Bonk,
-            Protocol::RaydiumCpmm => ProtocolType::RaydiumCpmm,
-            Protocol::RaydiumClmm => ProtocolType::RaydiumClmm,
-            Protocol::RaydiumAmmV4 => ProtocolType::RaydiumAmmV4,
-            Protocol::MeteoraDammV2 => ProtocolType::MeteoraDammV2,
-        };
+        metadata.protocol = protocol.into();
 
         match protocol {
             Protocol::PumpFun => pumpfun::parse_pumpfun_inner_instruction_data(
@@ -170,7 +150,7 @@ impl EventDispatcher {
         }
     }
 
-    /// 通过 program_id 匹配协议类型
+    /// Match protocol by program_id using O(1) direct comparison
     #[inline]
     pub fn match_protocol_by_program_id(program_id: &Pubkey) -> Option<Protocol> {
         if program_id == &pumpfun::PUMPFUN_PROGRAM_ID {
@@ -192,20 +172,20 @@ impl EventDispatcher {
         }
     }
 
-    /// 检查是否为 Compute Budget Program
+    /// Check if program_id is the Compute Budget Program
     #[inline]
     pub fn is_compute_budget_program(program_id: &Pubkey) -> bool {
         program_id == &COMPUTE_BUDGET_PROGRAM_ID
     }
 
-    /// 解析 Compute Budget 指令
+    /// Parse Compute Budget instruction
     ///
-    /// # 参数
-    /// - `instruction_data`: 指令数据
-    /// - `metadata`: 事件元数据
+    /// # Arguments
+    /// - `instruction_data`: Instruction data
+    /// - `metadata`: Event metadata
     ///
-    /// # 返回
-    /// 解析成功返回 `Some(DexEvent)`，否则返回 `None`
+    /// # Returns
+    /// `Some(DexEvent)` on success, `None` otherwise
     #[inline]
     pub fn dispatch_compute_budget_instruction(
         instruction_data: &[u8],
@@ -214,7 +194,7 @@ impl EventDispatcher {
         CommonEventParser::parse_compute_budget_instruction(instruction_data, metadata)
     }
 
-    /// 获取指定协议的 program_id
+    /// Get the program_id for a given protocol
     #[inline]
     pub fn get_program_id(protocol: Protocol) -> Pubkey {
         match protocol {
@@ -228,40 +208,30 @@ impl EventDispatcher {
         }
     }
 
-    /// 批量获取 program_ids
+    /// Get program_ids for multiple protocols
     pub fn get_program_ids(protocols: &[Protocol]) -> Vec<Pubkey> {
-        protocols.iter().map(|p| Self::get_program_id(p.clone())).collect()
+        protocols.iter().map(|protocol| Self::get_program_id(*protocol)).collect()
     }
 
-    /// 解析账户数据
+    /// Parse account data
     ///
-    /// 根据账户的 discriminator 路由到对应协议的账户解析函数
+    /// Routes to protocol-specific account parser based on account discriminator
     ///
-    /// # 参数
-    /// - `protocol`: 协议类型
-    /// - `discriminator`: 账户判别器
-    /// - `account`: 账户信息
-    /// - `metadata`: 事件元数据
+    /// # Arguments
+    /// - `protocol`: Protocol type
+    /// - `discriminator`: Account discriminator
+    /// - `account`: Account info
+    /// - `metadata`: Event metadata
     ///
-    /// # 返回
-    /// 解析成功返回 `Some(DexEvent)`，否则返回 `None`
+    /// # Returns
+    /// `Some(DexEvent)` on success, `None` otherwise
     pub fn dispatch_account(
         protocol: Protocol,
         discriminator: &[u8],
         account: &crate::streaming::grpc::AccountPretty,
         mut metadata: crate::streaming::event_parser::common::EventMetadata,
     ) -> Option<DexEvent> {
-        // 根据协议类型设置 metadata.protocol
-        use crate::streaming::event_parser::common::ProtocolType;
-        metadata.protocol = match protocol {
-            Protocol::PumpFun => ProtocolType::PumpFun,
-            Protocol::PumpSwap => ProtocolType::PumpSwap,
-            Protocol::Bonk => ProtocolType::Bonk,
-            Protocol::RaydiumCpmm => ProtocolType::RaydiumCpmm,
-            Protocol::RaydiumClmm => ProtocolType::RaydiumClmm,
-            Protocol::RaydiumAmmV4 => ProtocolType::RaydiumAmmV4,
-            Protocol::MeteoraDammV2 => ProtocolType::MeteoraDammV2,
-        };
+        metadata.protocol = protocol.into();
 
         match protocol {
             Protocol::PumpFun => {
@@ -281,7 +251,7 @@ impl EventDispatcher {
                 raydium_amm_v4::parse_raydium_amm_v4_account_data(discriminator, account, metadata)
             }
             Protocol::MeteoraDammV2 => {
-                // Meteora DAMM 目前不需要解析账户数据，返回 None
+                // Meteora DAMM does not need account data parsing currently
                 None
             }
         }

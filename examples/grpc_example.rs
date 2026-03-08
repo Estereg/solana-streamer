@@ -88,7 +88,6 @@ async fn test_grpc() -> Result<(), Box<dyn std::error::Error>> {
 
     grpc.subscribe_events_immediate(
         protocols,
-        None,
         vec![transaction_filter],
         vec![account_filter],
         event_type_filter,
@@ -97,7 +96,7 @@ async fn test_grpc() -> Result<(), Box<dyn std::error::Error>> {
     )
     .await?;
 
-    // 支持 stop 方法，测试代码 -  异步1000秒之后停止
+    // Support stop method, test code - stop after 1000 seconds asynchronously
     let grpc_clone = grpc.clone();
     tokio::spawn(async move {
         tokio::time::sleep(std::time::Duration::from_secs(1000)).await;

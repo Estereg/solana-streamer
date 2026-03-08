@@ -50,20 +50,18 @@ impl YellowstoneGrpc {
             .subscribe_with_request(transactions, None, None, None)
             .await?;
 
-        let callback = Box::new(callback);
-
         tokio::spawn(async move {
             while let Some(message) = stream.next().await {
                 match message {
                     Ok(msg) => {
                         let created_at = msg.created_at;
                         match msg.update_oneof {
-                            Some(UpdateOneof::Transaction(sut)) => {
+                            Some(UpdateOneof::Transaction(transaction_update)) => {
                                 let transaction_pretty =
-                                    factory::create_transaction_pretty_pooled(sut, created_at);
+                                    factory::create_transaction_pretty(transaction_update, created_at);
                                 let event_pretty = EventPretty::Transaction(transaction_pretty);
                                 if let Err(e) =
-                                    Self::process_system_transaction(event_pretty, &*callback).await
+                                    Self::process_system_transaction(event_pretty, &callback).await
                                 {
                                     error!("Error processing transaction: {e:?}");
                                 }
@@ -98,15 +96,12 @@ impl YellowstoneGrpc {
     where
         F: Fn(SystemEvent) + Send + Sync,
     {
-        match event_pretty {
-            EventPretty::Transaction(transaction_pretty) => {
-                callback(SystemEvent::NewTransfer(TransferInfo {
-                    slot: transaction_pretty.slot,
-                    signature: transaction_pretty.signature.to_string(),
-                    tx: Some(transaction_pretty.grpc_tx),
-                }));
-            }
-            _ => {}
+        if let EventPretty::Transaction(transaction_pretty) = event_pretty {
+            callback(SystemEvent::NewTransfer(TransferInfo {
+                slot: transaction_pretty.slot,
+                signature: transaction_pretty.signature.to_string(),
+                tx: Some(transaction_pretty.grpc_tx),
+            }));
         }
         Ok(())
     }

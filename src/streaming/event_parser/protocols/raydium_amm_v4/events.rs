@@ -6,7 +6,7 @@ use borsh::BorshDeserialize;
 use serde::{Deserialize, Serialize};
 use solana_sdk::pubkey::Pubkey;
 
-/// 交易
+/// Swap event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct RaydiumAmmV4SwapEvent {
     #[borsh(skip)]
@@ -38,7 +38,7 @@ pub struct RaydiumAmmV4SwapEvent {
     pub user_source_owner: Pubkey,
 }
 
-/// 添加流动性
+/// Deposit event structure (Add liquidity)
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct RaydiumAmmV4DepositEvent {
     #[borsh(skip)]
@@ -63,7 +63,7 @@ pub struct RaydiumAmmV4DepositEvent {
     pub serum_event_queue: Pubkey,
 }
 
-/// 初始化
+/// Initialize2 event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct RaydiumAmmV4Initialize2Event {
     #[borsh(skip)]
@@ -96,7 +96,7 @@ pub struct RaydiumAmmV4Initialize2Event {
     pub user_lp_token_account: Pubkey,
 }
 
-/// 移除流动性
+/// Withdraw event structure (Remove liquidity)
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct RaydiumAmmV4WithdrawEvent {
     #[borsh(skip)]
@@ -127,7 +127,7 @@ pub struct RaydiumAmmV4WithdrawEvent {
     pub serum_asks: Pubkey,
 }
 
-/// 提现
+/// WithdrawPnl event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct RaydiumAmmV4WithdrawPnlEvent {
     #[borsh(skip)]
@@ -152,7 +152,7 @@ pub struct RaydiumAmmV4WithdrawPnlEvent {
     pub serum_vault_signer: Pubkey,
 }
 
-/// 池信息
+/// AmmInfo account event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct RaydiumAmmV4AmmInfoAccountEvent {
     #[borsh(skip)]
@@ -165,9 +165,9 @@ pub struct RaydiumAmmV4AmmInfoAccountEvent {
     pub amm_info: AmmInfo,
 }
 
-/// 事件鉴别器常量
+/// Discriminators for Raydium AMM V4 events
 pub mod discriminators {
-    // 指令鉴别器
+    // Instruction Discriminators
     pub const SWAP_BASE_IN: &[u8] = &[9];
     pub const SWAP_BASE_OUT: &[u8] = &[11];
     pub const DEPOSIT: &[u8] = &[03];
@@ -175,6 +175,6 @@ pub mod discriminators {
     pub const WITHDRAW: &[u8] = &[04];
     pub const WITHDRAW_PNL: &[u8] = &[07];
 
-    /// 池信息鉴别器
+    /// AmmInfo Discriminator
     pub const AMM_INFO: &[u8] = &[6];
 }

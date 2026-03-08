@@ -10,13 +10,13 @@ use crate::streaming::event_parser::{
 };
 use solana_sdk::pubkey::Pubkey;
 
-/// PumpSwap程序ID
+/// PumpSwap Program ID
 pub const PUMPSWAP_PROGRAM_ID: Pubkey =
     solana_sdk::pubkey!("pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA");
 
-/// 解析 PumpSwap instruction data
+/// Parse PumpSwap instruction data
 ///
-/// 根据判别器路由到具体的 instruction 解析函数
+/// Routes to specific instruction parsing functions based on the discriminator
 pub fn parse_pumpswap_instruction_data(
     discriminator: &[u8],
     data: &[u8],
@@ -36,9 +36,9 @@ pub fn parse_pumpswap_instruction_data(
     }
 }
 
-/// 解析 PumpSwap inner instruction data
+/// Parse PumpSwap inner instruction data
 ///
-/// 根据判别器路由到具体的 inner instruction 解析函数
+/// Routes to specific inner instruction parsing functions based on the discriminator
 pub fn parse_pumpswap_inner_instruction_data(
     discriminator: &[u8],
     data: &[u8],
@@ -57,9 +57,9 @@ pub fn parse_pumpswap_inner_instruction_data(
 }
 
 
-/// 解析 PumpSwap 账户数据
+/// Parse PumpSwap account data
 ///
-/// 根据判别器路由到具体的账户解析函数
+/// Routes to specific account parsing functions based on the discriminator
 pub fn parse_pumpswap_account_data(
     discriminator: &[u8],
     account: &crate::streaming::grpc::AccountPretty,
@@ -76,7 +76,7 @@ pub fn parse_pumpswap_account_data(
     }
 }
 
-/// 解析买入日志事件
+/// Parse buy log event
 fn parse_buy_inner_instruction(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
     // Note: event_type will be set by instruction parser
     if let Some(event) = pump_swap_buy_event_log_decode(data) {
@@ -86,7 +86,7 @@ fn parse_buy_inner_instruction(data: &[u8], metadata: EventMetadata) -> Option<D
     }
 }
 
-/// 解析卖出日志事件
+/// Parse sell log event
 fn parse_sell_inner_instruction(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
     // Note: event_type will be set by instruction parser
     if let Some(event) = pump_swap_sell_event_log_decode(data) {
@@ -96,7 +96,7 @@ fn parse_sell_inner_instruction(data: &[u8], metadata: EventMetadata) -> Option<
     }
 }
 
-/// 解析创建池子日志事件
+/// Parse create pool log event
 fn parse_create_pool_inner_instruction(
     data: &[u8],
     metadata: EventMetadata,
@@ -109,7 +109,7 @@ fn parse_create_pool_inner_instruction(
     }
 }
 
-/// 解析存款日志事件
+/// Parse deposit log event
 fn parse_deposit_inner_instruction(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
     // Note: event_type will be set by instruction parser
     if let Some(event) = pump_swap_deposit_event_log_decode(data) {
@@ -119,7 +119,7 @@ fn parse_deposit_inner_instruction(data: &[u8], metadata: EventMetadata) -> Opti
     }
 }
 
-/// 解析提款日志事件
+/// Parse withdraw log event
 fn parse_withdraw_inner_instruction(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
     // Note: event_type will be set by instruction parser
     if let Some(event) = pump_swap_withdraw_event_log_decode(data) {
@@ -129,14 +129,9 @@ fn parse_withdraw_inner_instruction(data: &[u8], metadata: EventMetadata) -> Opt
     }
 }
 
-/// 解析买入指令事件
-/// Buy 指令共 23 个固定账户（与 idl/pump_amm.json 一致）:
-/// 0: pool, 1: user, 2: global_config, 3: base_mint, 4: quote_mint, 5: user_base_token_account,
-/// 6: user_quote_token_account, 7: pool_base_token_account, 8: pool_quote_token_account,
-/// 9: protocol_fee_recipient, 10: protocol_fee_recipient_token_account, 11: base_token_program,
-/// 12: quote_token_program, 13: system_program, 14: associated_token_program, 15: event_authority,
-/// 16: program, 17: coin_creator_vault_ata, 18: coin_creator_vault_authority,
-/// 19: global_volume_accumulator, 20: user_volume_accumulator, 21: fee_config, 22: fee_program.
+/// Parse buy instruction event
+///
+/// Buy instruction has 23 fixed accounts (aligned with idl/pump_amm.json)
 fn parse_buy_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -173,9 +168,9 @@ fn parse_buy_instruction(
     }))
 }
 
-/// 解析 buy_exact_quote_in 指令事件
-/// 账户布局与 buy 相同，共 23 个固定账户（0–22，17/18 为 coin_creator_vault_ata / coin_creator_vault_authority）。
-/// 参数顺序与 buy 不同: spendable_quote_in (SOL), min_base_amount_out (token).
+/// Parse buy_exact_quote_in instruction event
+///
+/// Account layout is the same as buy; order: spendable_quote_in (SOL), min_base_amount_out (token).
 fn parse_buy_exact_quote_in_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -187,7 +182,7 @@ fn parse_buy_exact_quote_in_instruction(
         return None;
     }
 
-    // 注意：buy_exact_quote_in 的参数顺序是先 quote (SOL) 再 base (token)
+    // Note: buy_exact_quote_in parameter order is quote (SOL) then base (token)
     let spendable_quote_in = read_u64_le(data, 0)?;
     let min_base_amount_out = read_u64_le(data, 8)?;
 
@@ -213,13 +208,9 @@ fn parse_buy_exact_quote_in_instruction(
     }))
 }
 
-/// 解析卖出指令事件
-/// Sell 指令共 21 个固定账户（与 idl/pump_amm.json 一致）:
-/// 0: pool, 1: user, 2: global_config, 3: base_mint, 4: quote_mint, 5: user_base_token_account,
-/// 6: user_quote_token_account, 7: pool_base_token_account, 8: pool_quote_token_account,
-/// 9: protocol_fee_recipient, 10: protocol_fee_recipient_token_account, 11: base_token_program,
-/// 12: quote_token_program, 13: system_program, 14: associated_token_program, 15: event_authority,
-/// 16: program, 17: coin_creator_vault_ata, 18: coin_creator_vault_authority, 19: fee_config, 20: fee_program.
+/// Parse sell instruction event
+///
+/// Sell instruction has 21 fixed accounts (aligned with idl/pump_amm.json)
 fn parse_sell_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -256,7 +247,7 @@ fn parse_sell_instruction(
     }))
 }
 
-/// 解析创建池子指令事件
+/// Parse create pool instruction event
 fn parse_create_pool_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -297,7 +288,7 @@ fn parse_create_pool_instruction(
     }))
 }
 
-/// 解析存款指令事件
+/// Parse deposit instruction event
 fn parse_deposit_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -331,7 +322,7 @@ fn parse_deposit_instruction(
     }))
 }
 
-/// 解析提款指令事件
+/// Parse withdraw instruction event
 fn parse_withdraw_instruction(
     data: &[u8],
     accounts: &[Pubkey],

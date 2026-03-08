@@ -1,43 +1,9 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use crossbeam_queue::ArrayQueue;
 use serde::{Deserialize, Serialize};
 use solana_sdk::{pubkey::Pubkey, signature::Signature};
-use std::{borrow::Cow, fmt, sync::Arc};
+use std::{borrow::Cow, fmt};
 
 use crate::streaming::event_parser::DexEvent;
-
-// Object pool size configuration
-const EVENT_METADATA_POOL_SIZE: usize = 1000;
-
-/// Event metadata object pool
-pub struct EventMetadataPool {
-    pool: Arc<ArrayQueue<EventMetadata>>,
-}
-
-impl Default for EventMetadataPool {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl EventMetadataPool {
-    pub fn new() -> Self {
-        Self { pool: Arc::new(ArrayQueue::new(EVENT_METADATA_POOL_SIZE)) }
-    }
-
-    pub fn acquire(&self) -> Option<EventMetadata> {
-        self.pool.pop()
-    }
-
-    pub fn release(&self, metadata: EventMetadata) {
-        // 如果队列已满，push 会失败，但不会阻塞
-        let _ = self.pool.push(metadata);
-    }
-}
-
-// Global object pool instances
-pub static EVENT_METADATA_POOL: std::sync::LazyLock<EventMetadataPool> =
-    std::sync::LazyLock::new(EventMetadataPool::new);
 
 #[derive(
     Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, BorshSerialize, BorshDeserialize,
@@ -56,7 +22,7 @@ pub enum ProtocolType {
 
 /// Event type enumeration
 #[derive(
-    Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize, BorshSerialize, BorshDeserialize,
+    Debug, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, BorshSerialize, BorshDeserialize,
 )]
 pub enum EventType {
     // PumpSwap events
@@ -164,8 +130,8 @@ pub const ACCOUNT_EVENT_TYPES: &[EventType] = &[
 pub const BLOCK_EVENT_TYPES: &[EventType] = &[EventType::BlockMeta];
 
 impl fmt::Display for EventType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{:?}", self)
     }
 }
 
@@ -185,7 +151,7 @@ pub struct SwapData {
 pub struct EventMetadata {
     pub signature: Signature,
     pub slot: u64,
-    pub tx_index: Option<u64>, // 新增：交易在slot中的索引
+    pub tx_index: Option<u64>, // Transaction index within the slot
     pub block_time: i64,
     pub block_time_ms: i64,
     pub recv_us: i64,
@@ -197,7 +163,6 @@ pub struct EventMetadata {
     pub outer_index: i64,
     pub inner_index: Option<i64>,
     /// Transaction message recent blockhash as base58 string (same encoding as signature), when available.
-    #[serde(default)]
     pub recent_blockhash: Option<String>,
 }
 
@@ -255,6 +220,18 @@ pub trait InnerInstructionLike {
     fn data(&self) -> &[u8];
 }
 
+impl<T: InnerInstructionLike> InnerInstructionLike for &T {
+    fn program_id_index(&self) -> usize {
+        (**self).program_id_index()
+    }
+    fn accounts(&self) -> &[u8] {
+        (**self).accounts()
+    }
+    fn data(&self) -> &[u8] {
+        (**self).data()
+    }
+}
+
 /// Adapter for standard Solana compiled instructions
 impl InnerInstructionLike for solana_sdk::message::compiled_instruction::CompiledInstruction {
     fn program_id_index(&self) -> usize {
@@ -280,6 +257,7 @@ impl InnerInstructionLike for yellowstone_grpc_proto::prelude::InnerInstruction 
         &self.data
     }
 }
+
 
 /// Extract event context (mint/token account/vault info) from a DexEvent
 fn extract_swap_context(event: &DexEvent) -> (
@@ -362,17 +340,17 @@ fn extract_swap_data_from_instructions<I: InnerInstructionLike>(
     current_index: i8,
     accounts: &[Pubkey],
 ) -> Option<SwapData> {
-    let (mut swap_data, fm, tm, uft, utt, fv, tv) = extract_swap_context(event);
+    let (mut swap_data, from_mint_opt, to_mint_opt, user_from_token_opt, user_to_token_opt, from_vault_opt, to_vault_opt) = extract_swap_context(event);
 
-    let user_to_token = utt.unwrap_or_default();
-    let user_from_token = uft.unwrap_or_default();
-    let to_vault = tv.unwrap_or_default();
-    let from_vault = fv.unwrap_or_default();
-    let to_mint = tm.unwrap_or_default();
-    let from_mint = fm.unwrap_or_default();
+    let user_to_token = user_to_token_opt.unwrap_or_default();
+    let user_from_token = user_from_token_opt.unwrap_or_default();
+    let to_vault = to_vault_opt.unwrap_or_default();
+    let from_vault = from_vault_opt.unwrap_or_default();
+    let to_mint = to_mint_opt.unwrap_or_default();
+    let from_mint = from_mint_opt.unwrap_or_default();
 
     for instruction in instructions.skip((current_index + 1) as usize) {
-        let program_id = accounts[instruction.program_id_index()];
+        let program_id = accounts.get(instruction.program_id_index()).copied().unwrap_or_default();
         if !SYSTEM_PROGRAMS.contains(&program_id) {
             break;
         }
@@ -383,19 +361,30 @@ fn extract_swap_data_from_instructions<I: InnerInstructionLike>(
             continue;
         }
 
-        let get_pubkey = |i: usize| accounts[accs[i] as usize];
+        let get_pubkey = |i: usize| -> Option<Pubkey> {
+            accounts.get(*accs.get(i)? as usize).copied()
+        };
         let (source, destination, amount) = match data[0] {
             12 if accs.len() >= 4 => {
-                let amt = u64::from_le_bytes(data[1..9].try_into().unwrap());
-                (get_pubkey(0), get_pubkey(2), amt)
+                let amt = u64::from_le_bytes(data[1..9].try_into().ok()?);
+                match (get_pubkey(0), get_pubkey(2)) {
+                    (Some(s), Some(d)) => (s, d, amt),
+                    _ => continue,
+                }
             }
             3 if accs.len() >= 3 => {
-                let amt = u64::from_le_bytes(data[1..9].try_into().unwrap());
-                (get_pubkey(0), get_pubkey(1), amt)
+                let amt = u64::from_le_bytes(data[1..9].try_into().ok()?);
+                match (get_pubkey(0), get_pubkey(1)) {
+                    (Some(s), Some(d)) => (s, d, amt),
+                    _ => continue,
+                }
             }
             2 if accs.len() >= 2 => {
-                let amt = u64::from_le_bytes(data[4..12].try_into().unwrap());
-                (get_pubkey(0), get_pubkey(1), amt)
+                let amt = u64::from_le_bytes(data[4..12].try_into().ok()?);
+                match (get_pubkey(0), get_pubkey(1)) {
+                    (Some(s), Some(d)) => (s, d, amt),
+                    _ => continue,
+                }
             }
             _ => continue,
         };
@@ -455,7 +444,7 @@ pub fn parse_swap_data_from_next_instructions(
 ) -> Option<SwapData> {
     extract_swap_data_from_instructions(
         event,
-        inner_instruction.instructions.iter().map(|ix| ix.instruction.clone()),
+        inner_instruction.instructions.iter().map(|ix| &ix.instruction),
         current_index,
         accounts,
     )
@@ -470,7 +459,7 @@ pub fn parse_swap_data_from_next_grpc_instructions(
 ) -> Option<SwapData> {
     extract_swap_data_from_instructions(
         event,
-        inner_instruction.instructions.iter().cloned(),
+        inner_instruction.instructions.iter(),
         current_index,
         accounts,
     )

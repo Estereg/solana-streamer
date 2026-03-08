@@ -1,21 +1,17 @@
-//! # 事件解析器配置缓存模块
+//! # Event parser configuration cache module
 //!
-//! 本模块管理事件解析器的缓存，包括：
-//! - 程序ID缓存
-//! - 账户事件解析器（Account Event Parser）
-//! - 高性能缓存工具
+//! Manages event parser caches including:
+//! - Program ID cache
+//! - High-performance cache tools
 //!
-//! ## 设计目标
-//! - **高性能缓存**：避免重复初始化和内存分配
-//! - **易于扩展**：通过 dispatcher 动态派发
+//! ## Design goals
+//! - **High-performance caching**: Avoid repeated initialization and memory allocation
+//! - **Extensibility**: Dynamic dispatch through the dispatcher
 
-use crate::streaming::{
-    event_parser::{
-        common::{filter::EventTypeFilter, EventMetadata, EventType, ProtocolType},
-        core::dispatcher::EventDispatcher,
-        Protocol, DexEvent,
-    },
-    grpc::AccountPretty,
+use crate::streaming::event_parser::{
+    common::{filter::EventTypeFilter, EventType},
+    core::dispatcher::EventDispatcher,
+    Protocol,
 };
 use solana_sdk::pubkey::Pubkey;
 use std::{
@@ -24,27 +20,27 @@ use std::{
 };
 
 // ============================================================================
-// 第一部分：程序ID缓存
+// Part 1: Program ID Cache
 // ============================================================================
 
-/// 缓存键：用于标识不同的协议和过滤器组合
+/// Cache key: identifies a unique combination of protocols and filters
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CacheKey {
-    /// 协议列表（已排序）
+    /// Sorted protocol list
     pub protocols: Vec<Protocol>,
-    /// 事件类型过滤器（可选，已排序）
+    /// Optional sorted event type filter
     pub event_types: Option<Vec<EventType>>,
 }
 
 impl CacheKey {
-    /// 创建新的缓存键
+    /// Create a new cache key
     pub fn new(mut protocols: Vec<Protocol>, filter: Option<&EventTypeFilter>) -> Self {
-        // 排序协议列表，确保相同协议组合生成相同的key
-        protocols.sort_by_cached_key(|p| format!("{:?}", p));
+        // Sort protocols to ensure identical combinations produce the same key
+        protocols.sort();
 
         let event_types = filter.map(|f| {
             let mut types = f.include.clone();
-            types.sort_by_cached_key(|t| format!("{:?}", t));
+            types.sort();
             types
         });
 
@@ -52,72 +48,72 @@ impl CacheKey {
     }
 }
 
-/// 全局程序ID缓存（使用读写锁保护）
+/// Global program ID cache (protected by RwLock)
 static GLOBAL_PROGRAM_IDS_CACHE: LazyLock<
     std::sync::RwLock<HashMap<CacheKey, Arc<Vec<Pubkey>>>>,
 > = LazyLock::new(|| std::sync::RwLock::new(HashMap::new()));
 
-/// 获取指定协议的程序ID列表
+/// Get program IDs for the specified protocols
 ///
-/// 使用 EventDispatcher 获取 program_ids，并缓存结果
+/// Uses EventDispatcher to get program_ids and caches the result
 pub fn get_global_program_ids(
     protocols: &[Protocol],
     filter: Option<&EventTypeFilter>,
 ) -> Arc<Vec<Pubkey>> {
     let cache_key = CacheKey::new(protocols.to_vec(), filter);
 
-    // 快速路径：尝试读取缓存
+    // Fast path: try reading from cache
     {
-        let cache = GLOBAL_PROGRAM_IDS_CACHE.read().unwrap();
+        let cache = GLOBAL_PROGRAM_IDS_CACHE.read().unwrap_or_else(|error| error.into_inner());
         if let Some(program_ids) = cache.get(&cache_key) {
             return program_ids.clone();
         }
     }
 
-    // 慢速路径：通过 EventDispatcher 获取并缓存
+    // Slow path: get via EventDispatcher and cache
     let program_ids = Arc::new(EventDispatcher::get_program_ids(protocols));
 
-    // 缓存结果（写锁）
-    GLOBAL_PROGRAM_IDS_CACHE.write().unwrap().insert(cache_key, program_ids.clone());
+    // Cache the result (write lock)
+    GLOBAL_PROGRAM_IDS_CACHE.write().unwrap_or_else(|error| error.into_inner()).insert(cache_key, program_ids.clone());
 
     program_ids
 }
 
 // ============================================================================
-// 第二部分：账户公钥缓存工具（Account Pubkey Cache）
+// Part 2: Account Pubkey Cache Tools
 // ============================================================================
 
-/// 高性能账户公钥缓存
+/// High-performance account pubkey cache
 ///
-/// 通过重用内存避免重复Vec分配，提升性能
+/// Reuses memory to avoid repeated Vec allocations, improving performance
 #[derive(Debug)]
 pub struct AccountPubkeyCache {
-    /// 预分配的账户公钥向量
+    /// Pre-allocated account pubkey vector
     cache: Vec<Pubkey>,
 }
 
 impl AccountPubkeyCache {
-    /// 创建新的账户公钥缓存
+    /// Create a new account pubkey cache
     ///
-    /// 预分配32个位置，覆盖大多数交易场景
+    /// Pre-allocates 32 slots, covering most transaction scenarios
     pub fn new() -> Self {
         Self {
             cache: Vec::with_capacity(32),
         }
     }
 
-    /// 从指令账户索引构建账户公钥向量
+    /// Build account pubkey vector from instruction account indices
     ///
-    /// # 参数
-    /// - `instruction_accounts`: 指令账户索引列表
-    /// - `all_accounts`: 所有账户公钥列表
+    /// # Parameters
+    /// - `instruction_accounts`: Instruction account index list
+    /// - `all_accounts`: All account pubkeys
     ///
-    /// # 返回
-    /// 账户公钥切片引用
+    /// # Returns
+    /// Account pubkey slice reference
     ///
-    /// # 性能优化
-    /// - 重用内部缓存，避免重新分配
-    /// - 仅在必要时扩容
+    /// # Performance optimization
+    /// - Reuses internal cache to avoid reallocation
+    /// - Only expands capacity when necessary
     #[inline]
     pub fn build_account_pubkeys(
         &mut self,
@@ -126,15 +122,17 @@ impl AccountPubkeyCache {
     ) -> &[Pubkey] {
         self.cache.clear();
 
-        // 确保容量足够，避免动态扩容
+        // Ensure sufficient capacity to avoid dynamic resizing
         if self.cache.capacity() < instruction_accounts.len() {
             self.cache.reserve(instruction_accounts.len() - self.cache.capacity());
         }
 
-        // 快速填充账户公钥（带边界检查）
-        for &idx in instruction_accounts.iter() {
-            if (idx as usize) < all_accounts.len() {
-                self.cache.push(all_accounts[idx as usize]);
+        // Fast fill account pubkeys (with bounds checking)
+        for &index in instruction_accounts.iter() {
+            if (index as usize) < all_accounts.len() {
+                self.cache.push(all_accounts[index as usize]);
+            } else {
+                self.cache.push(Pubkey::default());
             }
         }
 
@@ -153,52 +151,51 @@ thread_local! {
         std::cell::RefCell::new(AccountPubkeyCache::new());
 }
 
-/// 从线程局部缓存构建账户公钥列表
+/// Build account pubkey list from thread-local cache
 ///
-/// # 参数
-/// - `instruction_accounts`: 指令账户索引列表
-/// - `all_accounts`: 所有账户公钥列表
+/// # Parameters
+/// - `instruction_accounts`: Instruction account index list
+/// - `all_accounts`: All account pubkeys
 ///
-/// # 返回
-/// 账户公钥向量
+/// # Returns
+/// Account pubkey vector
 ///
-/// # 线程安全
-/// 使用线程局部存储，每个线程独立缓存
+/// # Thread safety
+/// Uses thread-local storage, each thread has its own independent cache
 #[inline]
 pub fn build_account_pubkeys_with_cache(
     instruction_accounts: &[u8],
     all_accounts: &[Pubkey],
 ) -> Vec<Pubkey> {
-    THREAD_LOCAL_ACCOUNT_CACHE.with(|cache| {
-        let mut cache = cache.borrow_mut();
+    THREAD_LOCAL_ACCOUNT_CACHE.with(|tl_cache| {
+        let mut cache = tl_cache.borrow_mut();
         cache.build_account_pubkeys(instruction_accounts, all_accounts).to_vec()
     })
 }
 
-// ============================================================================
-// 第三部分：账户事件解析器配置（Account Event Parser）
-// ============================================================================
-
-/// 账户事件解析器函数类型
+/// Execute a closure with a borrowed account pubkey slice from the thread-local cache
 ///
-/// 用于解析账户状态变更生成的事件
-pub type AccountEventParserFn =
-    fn(account: &AccountPretty, metadata: EventMetadata) -> Option<DexEvent>;
-
-/// 账户事件解析器配置
+/// This avoids allocating a Vec by providing a zero-allocation reference to the cached slice.
 ///
-/// 定义如何解析特定协议的账户事件
-#[derive(Debug, Clone)]
-pub struct AccountEventParseConfig {
-    /// 程序ID（Program ID）
-    pub program_id: Pubkey,
-    /// 协议类型
-    pub protocol_type: ProtocolType,
-    /// 事件类型
-    pub event_type: EventType,
-    /// 账户判别器（Account Discriminator）
-    pub account_discriminator: &'static [u8],
-    /// 账户解析器函数
-    pub account_parser: AccountEventParserFn,
+/// # Parameters
+/// - `instruction_accounts`: Instruction account index list
+/// - `all_accounts`: All account pubkeys
+/// - `f`: Closure that takes the slice (`&[Pubkey]`)
+///
+/// # Returns
+/// The result of the closure
+#[inline]
+pub fn with_account_pubkeys_cache<Result, Operation>(
+    instruction_accounts: &[u8],
+    all_accounts: &[Pubkey],
+    operation: Operation,
+) -> Result
+where
+    Operation: FnOnce(&[Pubkey]) -> Result,
+{
+    THREAD_LOCAL_ACCOUNT_CACHE.with(|tl_cache| {
+        let mut cache = tl_cache.borrow_mut();
+        let pubkeys = cache.build_account_pubkeys(instruction_accounts, all_accounts);
+        operation(pubkeys)
+    })
 }
-

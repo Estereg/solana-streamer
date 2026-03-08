@@ -7,7 +7,7 @@ use borsh::BorshDeserialize;
 use serde::{Deserialize, Serialize};
 use solana_sdk::pubkey::Pubkey;
 
-/// 交易
+/// Swap event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct RaydiumCpmmSwapEvent {
     #[borsh(skip)]
@@ -32,7 +32,7 @@ pub struct RaydiumCpmmSwapEvent {
 }
 
 
-/// 存款
+/// Deposit event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct RaydiumCpmmDepositEvent {
     #[borsh(skip)]
@@ -56,7 +56,7 @@ pub struct RaydiumCpmmDepositEvent {
     pub lp_mint: Pubkey,
 }
 
-/// 初始化
+/// Initialize event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct RaydiumCpmmInitializeEvent {
     #[borsh(skip)]
@@ -87,7 +87,7 @@ pub struct RaydiumCpmmInitializeEvent {
     pub rent: Pubkey,
 }
 
-/// 提款
+/// Withdraw event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct RaydiumCpmmWithdrawEvent {
     #[borsh(skip)]
@@ -112,7 +112,7 @@ pub struct RaydiumCpmmWithdrawEvent {
     pub memo_program: Pubkey,
 }
 
-/// 池配置
+/// AmmConfig account event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct RaydiumCpmmAmmConfigAccountEvent {
     #[borsh(skip)]
@@ -125,7 +125,7 @@ pub struct RaydiumCpmmAmmConfigAccountEvent {
     pub amm_config: AmmConfig,
 }
 
-/// 池状态
+/// PoolState account event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct RaydiumCpmmPoolStateAccountEvent {
     #[borsh(skip)]
@@ -138,16 +138,16 @@ pub struct RaydiumCpmmPoolStateAccountEvent {
     pub pool_state: PoolState,
 }
 
-/// 事件鉴别器常量
+/// Discriminators for Raydium CPMM events
 pub mod discriminators {
-    // 指令鉴别器
+    // Instruction Discriminators
     pub const SWAP_BASE_IN: &[u8] = &[143, 190, 90, 218, 196, 30, 51, 222];
     pub const SWAP_BASE_OUT: &[u8] = &[55, 217, 98, 86, 163, 74, 180, 173];
     pub const DEPOSIT: &[u8] = &[242, 35, 198, 137, 82, 225, 242, 182];
     pub const INITIALIZE: &[u8] = &[175, 175, 109, 31, 13, 152, 155, 237];
     pub const WITHDRAW: &[u8] = &[183, 18, 70, 156, 148, 109, 161, 34];
 
-    // 账号鉴别器
+    // Account Discriminators
     pub const AMM_CONFIG: &[u8] = &[218, 244, 33, 104, 203, 203, 43, 111];
     pub const POOL_STATE: &[u8] = &[247, 237, 227, 245, 215, 195, 222, 70];
 }

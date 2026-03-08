@@ -63,7 +63,6 @@ async fn main() -> Result<()> {
     if let Err(e) = client
         .subscribe_events_immediate(
             vec![Protocol::PumpFun, Protocol::RaydiumCpmm],
-            None,
             vec![pumpfun_filter],
             vec![account_filter],
             Some(trade_event_filter),
@@ -259,7 +258,6 @@ async fn main() -> Result<()> {
     if let Err(e) = shutdown_client
         .subscribe_events_immediate(
             vec![Protocol::PumpFun, Protocol::RaydiumCpmm],
-            None,
             vec![TransactionFilter {
                 account_include: vec![],
                 account_exclude: vec![],
@@ -330,7 +328,6 @@ async fn main() -> Result<()> {
     match client
         .subscribe_events_immediate(
             vec![Protocol::RaydiumCpmm],
-            None,
             vec![TransactionFilter {
                 account_include: vec![RAYDIUM_CPMM_PROGRAM_ID.to_string()],
                 account_exclude: vec![],
@@ -363,7 +360,6 @@ async fn main() -> Result<()> {
     match client2
         .subscribe_events_immediate(
             vec![Protocol::RaydiumCpmm],
-            None,
             vec![TransactionFilter {
                 account_include: vec![RAYDIUM_CPMM_PROGRAM_ID.to_string()],
                 account_exclude: vec![],
@@ -397,7 +393,6 @@ async fn main() -> Result<()> {
     match client3
         .subscribe_events_immediate(
             vec![Protocol::RaydiumCpmm],
-            None,
             vec![TransactionFilter {
                 account_include: vec![RAYDIUM_CPMM_PROGRAM_ID.to_string()],
                 account_exclude: vec![],
@@ -415,7 +410,6 @@ async fn main() -> Result<()> {
             match client3
                 .subscribe_events_immediate(
                     vec![Protocol::RaydiumCpmm],
-                    None,
                     vec![TransactionFilter {
                         account_include: vec![RAYDIUM_CPMM_PROGRAM_ID.to_string()],
                         account_exclude: vec![],
@@ -452,7 +446,6 @@ async fn main() -> Result<()> {
     match client4
         .subscribe_events_immediate(
             vec![Protocol::RaydiumCpmm],
-            None,
             vec![TransactionFilter {
                 account_include: vec![RAYDIUM_CPMM_PROGRAM_ID.to_string()],
                 account_exclude: vec![],

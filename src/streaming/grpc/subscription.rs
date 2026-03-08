@@ -53,12 +53,14 @@ impl SubscriptionManager {
         SubscribeRequest,
     )> {
         let blocks_meta =
-            if event_type_filter.is_some() && event_type_filter.unwrap().include_block_event() {
-                HashMap::from([("".to_owned(), SubscribeRequestFilterBlocksMeta {})])
-            } else if event_type_filter.is_none() {
-                HashMap::from([("".to_owned(), SubscribeRequestFilterBlocksMeta {})])
-            } else {
-                HashMap::new()
+            match event_type_filter {
+                Some(f) if f.include_block_event() => {
+                    HashMap::from([("".to_owned(), SubscribeRequestFilterBlocksMeta {})])
+                }
+                None => {
+                    HashMap::from([("".to_owned(), SubscribeRequestFilterBlocksMeta {})])
+                }
+                _ => HashMap::new(),
             };
         let subscribe_request = SubscribeRequest {
             accounts: accounts.unwrap_or_default(),
@@ -82,8 +84,10 @@ impl SubscriptionManager {
         account_filter: Vec<AccountFilter>,
         event_type_filter: Option<&EventTypeFilter>,
     ) -> Option<AccountsFilterMap> {
-        if event_type_filter.is_some() && !event_type_filter.unwrap().include_account_event() {
-            return None;
+        if let Some(f) = event_type_filter {
+            if !f.include_account_event() {
+                return None;
+            }
         }
         if account_filter.is_empty() {
             return None;
@@ -109,8 +113,10 @@ impl SubscriptionManager {
         transaction_filter: Vec<TransactionFilter>,
         event_type_filter: Option<&EventTypeFilter>,
     ) -> Option<TransactionsFilterMap> {
-        if event_type_filter.is_some() && !event_type_filter.unwrap().include_transaction_event() {
-            return None;
+        if let Some(f) = event_type_filter {
+            if !f.include_transaction_event() {
+                return None;
+            }
         }
         let mut transactions = HashMap::new();
         for (index, tf) in transaction_filter.iter().enumerate() {

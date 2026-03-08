@@ -1,3 +1,4 @@
+use crate::streaming::event_parser::common::ProtocolType;
 use crate::streaming::event_parser::protocols::{
     bonk::parser::BONK_PROGRAM_ID, meteora_damm_v2::parser::METEORA_DAMM_V2_PROGRAM_ID,
     pumpfun::parser::PUMPFUN_PROGRAM_ID, pumpswap::parser::PUMPSWAP_PROGRAM_ID,
@@ -7,8 +8,8 @@ use crate::streaming::event_parser::protocols::{
 use anyhow::{anyhow, Result};
 use solana_sdk::pubkey::Pubkey;
 
-/// 支持的协议
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// Supported protocols
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Protocol {
     PumpSwap,
     PumpFun,
@@ -60,6 +61,20 @@ impl std::str::FromStr for Protocol {
             "raydiumammv4" => Ok(Protocol::RaydiumAmmV4),
             "meteoradamm_v2" => Ok(Protocol::MeteoraDammV2),
             _ => Err(anyhow!("Unsupported protocol: {}", s)),
+        }
+    }
+}
+
+impl From<Protocol> for ProtocolType {
+    fn from(protocol: Protocol) -> Self {
+        match protocol {
+            Protocol::PumpFun => ProtocolType::PumpFun,
+            Protocol::PumpSwap => ProtocolType::PumpSwap,
+            Protocol::Bonk => ProtocolType::Bonk,
+            Protocol::RaydiumCpmm => ProtocolType::RaydiumCpmm,
+            Protocol::RaydiumClmm => ProtocolType::RaydiumClmm,
+            Protocol::RaydiumAmmV4 => ProtocolType::RaydiumAmmV4,
+            Protocol::MeteoraDammV2 => ProtocolType::MeteoraDammV2,
         }
     }
 }

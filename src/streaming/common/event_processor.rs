@@ -7,33 +7,7 @@ use crate::streaming::event_parser::core::event_parser::EventParser;
 use crate::streaming::event_parser::{core::traits::DexEvent, Protocol};
 use crate::streaming::grpc::{EventPretty, MetricsManager};
 use crate::streaming::shred::TransactionWithSlot;
-use solana_sdk::pubkey::Pubkey;
 use std::sync::Arc;
-
-/// 创建带 metrics 统计的 callback 包装器
-///
-/// 用于 Transaction 事件处理，在调用原始 callback 的同时更新 metrics
-#[inline]
-fn create_metrics_callback(
-    callback: Arc<dyn Fn(DexEvent) + Send + Sync>,
-) -> Arc<dyn Fn(DexEvent) + Send + Sync> {
-    Arc::new(move |event: DexEvent| {
-        let metadata = event.metadata();
-        let processing_time_us = metadata.handle_us as f64;
-        let recv_us = metadata.recv_us;
-        let block_time_ms = metadata.block_time_ms;
-
-        callback(event);
-
-        update_metrics_with_latency(
-            MetricsEventType::Transaction,
-            1,
-            processing_time_us,
-            recv_us,
-            block_time_ms,
-        );
-    })
-}
 
 /// Process GRPC transaction events
 pub async fn process_grpc_transaction(
@@ -41,7 +15,6 @@ pub async fn process_grpc_transaction(
     protocols: &[Protocol],
     event_type_filter: Option<&EventTypeFilter>,
     callback: Arc<dyn Fn(DexEvent) + Send + Sync>,
-    bot_wallet: Option<Pubkey>,
 ) -> AnyResult<()> {
     match event_pretty {
         EventPretty::Account(account_pretty) => {
@@ -69,7 +42,22 @@ pub async fn process_grpc_transaction(
             let tx_index = transaction_pretty.tx_index;
             let grpc_tx = transaction_pretty.grpc_tx;
 
-            let adapter_callback = create_metrics_callback(callback.clone());
+            let mut adapter_callback = |event: &DexEvent| {
+                let metadata = event.metadata();
+                let processing_time_us = metadata.handle_us as f64;
+                let recv_us = metadata.recv_us;
+                let block_time_ms = metadata.block_time_ms;
+
+                callback(event.clone());
+
+                update_metrics_with_latency(
+                    MetricsEventType::Transaction,
+                    1,
+                    processing_time_us,
+                    recv_us,
+                    block_time_ms,
+                );
+            };
 
             EventParser::parse_grpc_transaction(
                 protocols,
@@ -79,9 +67,8 @@ pub async fn process_grpc_transaction(
                 Some(slot),
                 block_time,
                 recv_us,
-                bot_wallet,
                 tx_index,
-                adapter_callback,
+                &mut adapter_callback,
             )
             .await?;
         }
@@ -94,7 +81,7 @@ pub async fn process_grpc_transaction(
                 .unwrap_or_else(|| {
                     std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap()
+                        .unwrap_or_default()
                         .as_millis() as i64
                 });
 
@@ -120,39 +107,53 @@ pub async fn process_shred_transaction(
     protocols: &[Protocol],
     event_type_filter: Option<&EventTypeFilter>,
     callback: Arc<dyn Fn(DexEvent) + Send + Sync>,
-    bot_wallet: Option<Pubkey>,
 ) -> AnyResult<()> {
     MetricsManager::global().add_tx_process_count();
 
-    let tx = transaction_with_slot.transaction;
+    let transaction = transaction_with_slot.transaction;
     let slot = transaction_with_slot.slot;
     let tx_index = transaction_with_slot.tx_index;
 
-    if tx.signatures.is_empty() {
+    if transaction.signatures.is_empty() {
         return Ok(());
     }
 
-    let signature = tx.signatures[0];
+    let signature = transaction.signatures[0];
     let recv_us = transaction_with_slot.recv_us;
 
-    let adapter_callback = create_metrics_callback(callback);
-    // Shred 路径仅能拿到 static_account_keys，且无 inner_instructions，解析限制见 docs/SHREDSTREAM_LIMITATIONS.md
-    // 若交易使用 ALT，账户可能为 default/错误；无 CPI 合并，timestamp/reserves 等多为 0。
-    let accounts = tx.message.static_account_keys();
+    let mut adapter_callback = |event: &DexEvent| {
+        let metadata = event.metadata();
+        let processing_time_us = metadata.handle_us as f64;
+        let recv_us = metadata.recv_us;
+        let block_time_ms = metadata.block_time_ms;
+
+        callback(event.clone());
+
+        update_metrics_with_latency(
+            MetricsEventType::Transaction,
+            1,
+            processing_time_us,
+            recv_us,
+            block_time_ms,
+        );
+    };
+
+    // Shred path only gets static_account_keys, no inner_instructions. See docs/SHREDSTREAM_LIMITATIONS.md
+    // If tx uses ALT, accounts might be default/wrong; no CPI merge, timestamp/reserves mostly 0.
+    let accounts = transaction.message.static_account_keys();
 
     EventParser::parse_instruction_events_from_versioned_transaction(
         protocols,
         event_type_filter,
-        &tx,
+        &transaction,
         signature,
         Some(slot),
-        None, // shred 无 block_time
+        None, // shred has no block_time
         recv_us,
         accounts,
         &[],
-        bot_wallet,
         tx_index,
-        adapter_callback,
+        &mut adapter_callback,
     )
     .await?;
 

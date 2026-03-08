@@ -39,9 +39,9 @@ async fn test_shreds() -> Result<(), Box<dyn std::error::Error>> {
     //     EventTypeFilter { include: vec![EventType::PumpSwapBuy, EventType::PumpSwapSell] };
 
     println!("Listening for events, press Ctrl+C to stop...");
-    shred_stream.shredstream_subscribe(protocols, None, event_type_filter, callback).await?;
+    shred_stream.shredstream_subscribe(protocols, event_type_filter, callback).await?;
 
-    // 支持 stop 方法，测试代码 - 异步1000秒之后停止
+    // Support stop method, test code - stop after 1000 seconds asynchronously
     let shred_clone = shred_stream.clone();
     tokio::spawn(async move {
         tokio::time::sleep(std::time::Duration::from_secs(1000)).await;

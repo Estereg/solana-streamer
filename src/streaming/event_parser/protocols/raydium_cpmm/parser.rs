@@ -9,13 +9,13 @@ use crate::streaming::event_parser::{
     DexEvent,
 };
 
-/// Raydium CPMM程序ID
+/// Raydium CPMM Program ID
 pub const RAYDIUM_CPMM_PROGRAM_ID: Pubkey =
     solana_sdk::pubkey!("CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C");
 
-/// 解析 Raydium CPMM instruction data
+/// Parse Raydium CPMM instruction data
 ///
-/// 根据判别器路由到具体的 instruction 解析函数
+/// Routes to specific instruction parsing functions based on the discriminator
 pub fn parse_raydium_cpmm_instruction_data(
     discriminator: &[u8],
     data: &[u8],
@@ -36,9 +36,9 @@ pub fn parse_raydium_cpmm_instruction_data(
     }
 }
 
-/// 解析 Raydium CPMM inner instruction data
+/// Parse Raydium CPMM inner instruction data
 ///
-/// Raydium CPMM 没有 inner instruction 事件
+/// Raydium CPMM does not have inner instruction events
 pub fn parse_raydium_cpmm_inner_instruction_data(
     _discriminator: &[u8],
     _data: &[u8],
@@ -48,9 +48,9 @@ pub fn parse_raydium_cpmm_inner_instruction_data(
 }
 
 
-/// 解析 Raydium CPMM 账户数据
+/// Parse Raydium CPMM account data
 ///
-/// 根据判别器路由到具体的账户解析函数
+/// Routes to specific account parsing functions based on the discriminator
 pub fn parse_raydium_cpmm_account_data(
     discriminator: &[u8],
     account: &crate::streaming::grpc::AccountPretty,
@@ -68,7 +68,7 @@ pub fn parse_raydium_cpmm_account_data(
 }
 
 
-/// 解析提款指令事件
+/// Parse withdraw instruction event
 fn parse_withdraw_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -101,7 +101,7 @@ fn parse_withdraw_instruction(
     }))
 }
 
-/// 解析初始化指令事件
+/// Parse initialize instruction event
 fn parse_initialize_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -140,7 +140,7 @@ fn parse_initialize_instruction(
     }))
 }
 
-/// 解析存款指令事件
+/// Parse deposit instruction event
 fn parse_deposit_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -172,7 +172,7 @@ fn parse_deposit_instruction(
     }))
 }
 
-/// 解析买入指令事件
+/// Parse swap (base input) instruction event
 fn parse_swap_base_input_instruction(
     data: &[u8],
     accounts: &[Pubkey],

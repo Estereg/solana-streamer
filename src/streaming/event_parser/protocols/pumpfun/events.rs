@@ -258,10 +258,6 @@ pub struct PumpFunTradeEvent {
     pub min_sol_output: u64,
     #[borsh(skip)]
     pub amount: u64,
-    #[borsh(skip)]
-    pub is_bot: bool,
-    #[borsh(skip)]
-    pub is_dev_create_token_trade: bool, // Whether this is a dev-created token trade
 
     #[borsh(skip)]
     pub global: Pubkey,
@@ -325,8 +321,8 @@ pub fn pumpfun_trade_event_log_decode(data: &[u8]) -> Option<PumpFunTradeEvent> 
     let mut event = borsh::from_slice::<PumpFunTradeEvent>(&data[..PUMPFUN_TRADE_EVENT_LOG_SIZE]).ok()?;
     let mut offset = PUMPFUN_TRADE_EVENT_LOG_SIZE;
     if offset < data.len() {
-        let (ix_name, inc) = read_borsh_string(data, offset).unwrap_or((String::new(), 0));
-        offset += inc;
+        let (ix_name, increment) = read_borsh_string(data, offset).unwrap_or((String::new(), 0));
+        offset += increment;
         event.ix_name = ix_name;
     }
     if offset + 1 <= data.len() {
@@ -345,17 +341,17 @@ pub fn pumpfun_trade_event_log_decode(data: &[u8]) -> Option<PumpFunTradeEvent> 
 }
 
 #[inline]
-fn read_borsh_string(data: &[u8], start: usize) -> Option<(String, usize)> {
-    if start + 4 > data.len() {
+fn read_borsh_string(data: &[u8], start_offset: usize) -> Option<(String, usize)> {
+    if start_offset + 4 > data.len() {
         return None;
     }
-    let len = u32::from_le_bytes(data[start..start + 4].try_into().ok()?) as usize;
-    let start = start + 4;
-    if start + len > data.len() {
+    let string_length = u32::from_le_bytes(data[start_offset..start_offset + 4].try_into().ok()?) as usize;
+    let content_start = start_offset + 4;
+    if content_start + string_length > data.len() {
         return None;
     }
-    let s = String::from_utf8_lossy(&data[start..start + len]).to_string();
-    Some((s, 4 + len))
+    let string_content = String::from_utf8_lossy(&data[content_start..content_start + string_length]).to_string();
+    Some((string_content, 4 + string_length))
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]

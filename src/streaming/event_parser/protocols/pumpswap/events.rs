@@ -5,7 +5,7 @@ use solana_sdk::pubkey::Pubkey;
 use crate::streaming::event_parser::common::EventMetadata;
 use crate::streaming::event_parser::protocols::pumpswap::types::{GlobalConfig, Pool};
 
-/// 买入事件
+/// Buy event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct PumpSwapBuyEvent {
     #[borsh(skip)]
@@ -65,7 +65,7 @@ pub fn pump_swap_buy_event_log_decode(data: &[u8]) -> Option<PumpSwapBuyEvent> {
     borsh::from_slice::<PumpSwapBuyEvent>(&data[..PUMP_SWAP_BUY_EVENT_LOG_SIZE]).ok()
 }
 
-/// 卖出事件
+/// Sell event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct PumpSwapSellEvent {
     #[borsh(skip)]
@@ -120,7 +120,7 @@ pub fn pump_swap_sell_event_log_decode(data: &[u8]) -> Option<PumpSwapSellEvent>
     borsh::from_slice::<PumpSwapSellEvent>(&data[..PUMP_SWAP_SELL_EVENT_LOG_SIZE]).ok()
 }
 
-/// 创建池子事件
+/// Create pool event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct PumpSwapCreatePoolEvent {
     #[borsh(skip)]
@@ -162,7 +162,7 @@ pub fn pump_swap_create_pool_event_log_decode(data: &[u8]) -> Option<PumpSwapCre
     borsh::from_slice::<PumpSwapCreatePoolEvent>(&data[..PUMP_SWAP_CREATE_POOL_EVENT_LOG_SIZE]).ok()
 }
 
-/// 存款事件
+/// Deposit event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct PumpSwapDepositEvent {
     #[borsh(skip)]
@@ -202,7 +202,7 @@ pub fn pump_swap_deposit_event_log_decode(data: &[u8]) -> Option<PumpSwapDeposit
     borsh::from_slice::<PumpSwapDepositEvent>(&data[..PUMP_SWAP_DEPOSIT_EVENT_LOG_SIZE]).ok()
 }
 
-/// 提款事件
+/// Withdraw event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct PumpSwapWithdrawEvent {
     #[borsh(skip)]
@@ -242,7 +242,7 @@ pub fn pump_swap_withdraw_event_log_decode(data: &[u8]) -> Option<PumpSwapWithdr
     borsh::from_slice::<PumpSwapWithdrawEvent>(&data[..PUMP_SWAP_WITHDRAW_EVENT_LOG_SIZE]).ok()
 }
 
-/// 全局配置
+/// Global config event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct PumpSwapGlobalConfigAccountEvent {
     #[borsh(skip)]
@@ -255,7 +255,7 @@ pub struct PumpSwapGlobalConfigAccountEvent {
     pub global_config: GlobalConfig,
 }
 
-/// 池
+/// Pool account event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct PumpSwapPoolAccountEvent {
     #[borsh(skip)]
@@ -268,9 +268,9 @@ pub struct PumpSwapPoolAccountEvent {
     pub pool: Pool,
 }
 
-/// 事件鉴别器常量
+/// Discriminators for PumpSwap events
 pub mod discriminators {
-    // 事件鉴别器
+    // Event Discriminators
     // pub const BUY_EVENT: &str = "0xe445a52e51cb9a1d67f4521f2cf57777";
     pub const BUY_EVENT: &[u8] =
         &[228, 69, 165, 46, 81, 203, 154, 29, 103, 244, 82, 31, 44, 245, 119, 119];
@@ -287,7 +287,7 @@ pub mod discriminators {
     pub const WITHDRAW_EVENT: &[u8] =
         &[228, 69, 165, 46, 81, 203, 154, 29, 22, 9, 133, 26, 160, 44, 71, 192];
 
-    // 指令鉴别器
+    // Instruction Discriminators
     pub const BUY_IX: &[u8] = &[102, 6, 61, 18, 1, 218, 235, 234];
     pub const BUY_EXACT_QUOTE_IN_IX: &[u8] = &[198, 46, 21, 82, 180, 217, 232, 112];
     pub const SELL_IX: &[u8] = &[51, 230, 133, 164, 1, 127, 131, 173];
@@ -295,7 +295,7 @@ pub mod discriminators {
     pub const DEPOSIT_IX: &[u8] = &[242, 35, 198, 137, 82, 225, 242, 182];
     pub const WITHDRAW_IX: &[u8] = &[183, 18, 70, 156, 148, 109, 161, 34];
 
-    // 账户鉴别器
+    // Account Discriminators
     pub const GLOBAL_CONFIG_ACCOUNT: &[u8] = &[149, 8, 156, 202, 160, 252, 176, 217];
     pub const POOL_ACCOUNT: &[u8] = &[241, 154, 109, 4, 17, 177, 109, 188];
 }

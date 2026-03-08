@@ -1,6 +1,6 @@
 use crate::streaming::event_parser::{
     common::{
-        read_i32_le, read_option_bool, read_u128_le, read_u64_le, read_u8_le, EventMetadata,
+        read_i32_le, read_option_bool, read_u128_le, read_u64_le, read_u8, EventMetadata,
         EventType,
     },
     protocols::raydium_clmm::{
@@ -13,13 +13,13 @@ use crate::streaming::event_parser::{
 };
 use solana_sdk::pubkey::Pubkey;
 
-/// Raydium CLMM程序ID
+/// Raydium CLMM Program ID
 pub const RAYDIUM_CLMM_PROGRAM_ID: Pubkey =
     solana_sdk::pubkey!("CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK");
 
-/// 解析 Raydium CLMM instruction data
+/// Parse Raydium CLMM instruction data
 ///
-/// 根据判别器路由到具体的 instruction 解析函数
+/// Routes to specific instruction parsing functions based on the discriminator
 pub fn parse_raydium_clmm_instruction_data(
     discriminator: &[u8],
     data: &[u8],
@@ -49,9 +49,9 @@ pub fn parse_raydium_clmm_instruction_data(
     }
 }
 
-/// 解析 Raydium CLMM inner instruction data
+/// Parse Raydium CLMM inner instruction data
 ///
-/// Raydium CLMM 没有 inner instruction 事件
+/// Raydium CLMM does not have inner instruction events
 pub fn parse_raydium_clmm_inner_instruction_data(
     _discriminator: &[u8],
     _data: &[u8],
@@ -61,9 +61,9 @@ pub fn parse_raydium_clmm_inner_instruction_data(
 }
 
 
-/// 解析 Raydium CLMM 账户数据
+/// Parse Raydium CLMM account data
 ///
-/// 根据判别器路由到具体的账户解析函数
+/// Routes to specific account parsing functions based on the discriminator
 pub fn parse_raydium_clmm_account_data(
     discriminator: &[u8],
     account: &crate::streaming::grpc::AccountPretty,
@@ -83,7 +83,7 @@ pub fn parse_raydium_clmm_account_data(
     }
 }
 
-/// 解析打开仓位V2指令事件
+/// Parse open position V2 instruction event
 fn parse_open_position_v2_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -103,7 +103,7 @@ fn parse_open_position_v2_instruction(
         liquidity: read_u128_le(data, 16)?,
         amount0_max: read_u64_le(data, 32)?,
         amount1_max: read_u64_le(data, 40)?,
-        with_metadata: read_u8_le(data, 48)? == 1,
+        with_metadata: read_u8(data, 48)? == 1,
         base_flag: read_option_bool(data, &mut 49)?,
         payer: accounts[0],
         position_nft_owner: accounts[1],
@@ -131,7 +131,7 @@ fn parse_open_position_v2_instruction(
     }))
 }
 
-/// 解析打开仓位v2指令事件
+/// Parse open position with Token-2022 NFT instruction event
 fn parse_open_position_with_token_22_nft_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -152,7 +152,7 @@ fn parse_open_position_with_token_22_nft_instruction(
             liquidity: read_u128_le(data, 16)?,
             amount0_max: read_u64_le(data, 32)?,
             amount1_max: read_u64_le(data, 40)?,
-            with_metadata: read_u8_le(data, 48)? == 1,
+            with_metadata: read_u8(data, 48)? == 1,
             base_flag: read_option_bool(data, &mut 49)?,
             payer: accounts[0],
             position_nft_owner: accounts[1],
@@ -178,7 +178,7 @@ fn parse_open_position_with_token_22_nft_instruction(
     ))
 }
 
-/// 解析增加流动性v2指令事件
+/// Parse increase liquidity V2 instruction event
 fn parse_increase_liquidity_v2_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -213,7 +213,7 @@ fn parse_increase_liquidity_v2_instruction(
     }))
 }
 
-/// 解析创建池指令事件
+/// Parse create pool instruction event
 fn parse_create_pool_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -244,7 +244,7 @@ fn parse_create_pool_instruction(
     }))
 }
 
-/// 解析减少流动性v2指令事件
+/// Parse decrease liquidity V2 instruction event
 fn parse_decrease_liquidity_v2_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -280,7 +280,7 @@ fn parse_decrease_liquidity_v2_instruction(
     }))
 }
 
-/// 解析关闭仓位指令事件
+/// Parse close position instruction event
 fn parse_close_position_instruction(
     _data: &[u8],
     accounts: &[Pubkey],
@@ -302,7 +302,7 @@ fn parse_close_position_instruction(
     }))
 }
 
-/// 解析交易指令事件
+/// Parse trade instruction event
 fn parse_swap_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -317,7 +317,7 @@ fn parse_swap_instruction(
     let amount = read_u64_le(data, 0)?;
     let other_amount_threshold = read_u64_le(data, 8)?;
     let sqrt_price_limit_x64 = read_u128_le(data, 16)?;
-    let is_base_input = read_u8_le(data, 32)?;
+    let is_base_input = read_u8(data, 32)?;
 
     Some(DexEvent::RaydiumClmmSwapEvent(RaydiumClmmSwapEvent {
         metadata,
@@ -353,7 +353,7 @@ fn parse_swap_v2_instruction(
     let amount = read_u64_le(data, 0)?;
     let other_amount_threshold = read_u64_le(data, 8)?;
     let sqrt_price_limit_x64 = read_u128_le(data, 16)?;
-    let is_base_input = read_u8_le(data, 32)?;
+    let is_base_input = read_u8(data, 32)?;
 
     Some(DexEvent::RaydiumClmmSwapV2Event(RaydiumClmmSwapV2Event {
         metadata,

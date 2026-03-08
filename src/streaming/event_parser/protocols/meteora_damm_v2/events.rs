@@ -34,13 +34,13 @@ pub struct PoolFeeParameters {
     pub dynamic_fee: Option<DynamicFeeParameters>,
 }
 
-/// Meteora DAMM v2 Swap Event (对应 swap 指令)
+/// Meteora DAMM v2 Swap Event (corresponds to swap instruction)
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct MeteoraDammV2SwapEvent {
     #[borsh(skip)]
     pub metadata: EventMetadata,
 
-    // 来自 CPI Log Event 的数据
+    // Data from CPI Log Event
     pub pool: Pubkey,
     pub trade_direction: u8, // 0 or 1
     pub collect_fee_mode: u8,
@@ -72,7 +72,7 @@ pub struct MeteoraDammV2SwapEvent {
     pub reserve_a_amount: u64,
     pub reserve_b_amount: u64,
 
-    // 来自 Input Accounts 的数据
+    // Data from Input Accounts
     #[borsh(skip)]
     pub pool_authority: Pubkey,
     #[borsh(skip)]
@@ -101,13 +101,13 @@ pub struct MeteoraDammV2SwapEvent {
     pub program: Pubkey,
 }
 
-/// Meteora DAMM v2 Swap2 Event (对应 swap2 指令)
+/// Meteora DAMM v2 Swap2 Event (corresponds to swap2 instruction)
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct MeteoraDammV2Swap2Event {
     #[borsh(skip)]
     pub metadata: EventMetadata,
 
-    // 来自 CPI Log Event 的数据
+    // Data from CPI Log Event
     pub pool: Pubkey,
     pub trade_direction: u8, // 0 or 1
     pub collect_fee_mode: u8,
@@ -139,7 +139,7 @@ pub struct MeteoraDammV2Swap2Event {
     pub reserve_a_amount: u64,
     pub reserve_b_amount: u64,
 
-    // 来自 Input Accounts 的数据
+    // Data from Input Accounts
     #[borsh(skip)]
     pub pool_authority: Pubkey,
     #[borsh(skip)]
@@ -170,13 +170,13 @@ pub struct MeteoraDammV2Swap2Event {
     pub sysvar: Pubkey,
 }
 
-/// Meteora DAMM v2 Initialize Pool Event (对应 initialize_pool 指令)
+/// Meteora DAMM v2 Initialize Pool Event (corresponds to initialize_pool instruction)
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct MeteoraDammV2InitializePoolEvent {
     #[borsh(skip)]
     pub metadata: EventMetadata,
 
-    // 来自 CPI Log Event 的数据
+    // Data from CPI Log Event
     pub pool: Pubkey,
     pub token_a_mint: Pubkey,
     pub token_b_mint: Pubkey,
@@ -205,7 +205,7 @@ pub struct MeteoraDammV2InitializePoolEvent {
     pub total_amount_b: u64,
     pub pool_type: u8,
 
-    // 来自 Input Accounts 的数据
+    // Data from Input Accounts
     #[borsh(skip)]
     pub position_nft_mint: Pubkey,
     #[borsh(skip)]
@@ -236,13 +236,13 @@ pub struct MeteoraDammV2InitializePoolEvent {
     pub remaining_accounts: Vec<Pubkey>,
 }
 
-/// Meteora DAMM v2 Initialize Customizable Pool Event (对应 initialize_customizable_pool 指令)
+/// Meteora DAMM v2 Initialize Customizable Pool Event (corresponds to initialize_customizable_pool instruction)
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct MeteoraDammV2InitializeCustomizablePoolEvent {
     #[borsh(skip)]
     pub metadata: EventMetadata,
 
-    // 来自 CPI Log Event 的数据
+    // Data from CPI Log Event
     pub pool: Pubkey,
     pub token_a_mint: Pubkey,
     pub token_b_mint: Pubkey,
@@ -271,7 +271,7 @@ pub struct MeteoraDammV2InitializeCustomizablePoolEvent {
     pub total_amount_b: u64,
     pub pool_type: u8,
 
-    // 来自 Input Accounts 的数据
+    // Data from Input Accounts
     #[borsh(skip)]
     pub position_nft_mint: Pubkey,
     #[borsh(skip)]
@@ -304,13 +304,13 @@ pub struct MeteoraDammV2InitializeCustomizablePoolEvent {
     pub remaining_accounts: Vec<Pubkey>,
 }
 
-/// Meteora DAMM v2 Initialize Pool With Dynamic Config Event (对应 initialize_pool_with_dynamic_config 指令)
+/// Meteora DAMM v2 Initialize Pool With Dynamic Config Event (corresponds to initialize_pool_with_dynamic_config instruction)
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct MeteoraDammV2InitializePoolWithDynamicConfigEvent {
     #[borsh(skip)]
     pub metadata: EventMetadata,
 
-    // 来自 CPI Log Event 的数据
+    // Data from CPI Log Event
     pub pool: Pubkey,
     pub token_a_mint: Pubkey,
     pub token_b_mint: Pubkey,
@@ -339,7 +339,7 @@ pub struct MeteoraDammV2InitializePoolWithDynamicConfigEvent {
     pub total_amount_b: u64,
     pub pool_type: u8,
 
-    // 来自 Input Accounts 的数据
+    // Data from Input Accounts
     #[borsh(skip)]
     pub position_nft_mint: Pubkey,
     #[borsh(skip)]
@@ -377,7 +377,7 @@ pub struct MeteoraDammV2InitializePoolWithDynamicConfigEvent {
 /// Event discriminators
 pub mod discriminators {
     // Instruction discriminators
-    // 从文档中提取的 instruction data 第一个 8 bytes
+    // First 8 bytes of instruction data extracted from documentation
     pub const SWAP_IX: &[u8] = &[0xf8, 0xc6, 0x9e, 0x91, 0xe1, 0x75, 0x87, 0xc8]; // swap
     pub const SWAP2_IX: &[u8] = &[0x41, 0x4b, 0x3f, 0x4c, 0xeb, 0x5b, 0x5b, 0x88]; // swap2
     pub const INITIALIZE_CUSTOMIZABLE_POOL_IX: &[u8] =
@@ -387,8 +387,8 @@ pub mod discriminators {
         &[0x95, 0x52, 0x48, 0xc5, 0xfd, 0xfc, 0x44, 0x0f]; // initialize_pool_with_dynamic_config
 
     // Event discriminators (CPI Log Event)
-    // e445a52e51cb9a1d 是 Meteora 的事件前缀
-    // 后面的 8 字节是具体事件类型
+    // e445a52e51cb9a1d is the Meteora event prefix
+    // The following 8 bytes are the specific event type
     pub const SWAP_EVENT: &[u8] = &[
         0xe4, 0x45, 0xa5, 0x2e, 0x51, 0xcb, 0x9a, 0x1d, 0xbd, 0x42, 0x33, 0xa8, 0x26, 0x50, 0x75,
         0x99,

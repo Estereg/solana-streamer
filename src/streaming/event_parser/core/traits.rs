@@ -96,13 +96,13 @@ macro_rules! impl_dex_event_metadata {
         impl DexEvent {
             pub fn metadata(&self) -> &EventMetadata {
                 match self {
-                    $(DexEvent::$variant(e) => &e.metadata,)*
+                    $(DexEvent::$variant(event) => &event.metadata,)*
                 }
             }
 
             pub fn metadata_mut(&mut self) -> &mut EventMetadata {
                 match self {
-                    $(DexEvent::$variant(e) => &mut e.metadata,)*
+                    $(DexEvent::$variant(event) => &mut event.metadata,)*
                 }
             }
         }
@@ -173,3 +173,46 @@ impl_dex_event_metadata!(
     SetComputeUnitLimitEvent,
     SetComputeUnitPriceEvent,
 );
+
+/// Trait abstracting over different instruction types for unified parsing
+pub trait InstructionLike {
+    fn program_id_index(&self) -> usize;
+    fn accounts(&self) -> &[u8];
+    fn data(&self) -> &[u8];
+}
+
+impl InstructionLike for solana_sdk::message::compiled_instruction::CompiledInstruction {
+    fn program_id_index(&self) -> usize {
+        self.program_id_index as usize
+    }
+    fn accounts(&self) -> &[u8] {
+        &self.accounts
+    }
+    fn data(&self) -> &[u8] {
+        &self.data
+    }
+}
+
+impl InstructionLike for yellowstone_grpc_proto::prelude::CompiledInstruction {
+    fn program_id_index(&self) -> usize {
+        self.program_id_index as usize
+    }
+    fn accounts(&self) -> &[u8] {
+        &self.accounts
+    }
+    fn data(&self) -> &[u8] {
+        &self.data
+    }
+}
+
+impl InstructionLike for yellowstone_grpc_proto::prelude::InnerInstruction {
+    fn program_id_index(&self) -> usize {
+        self.program_id_index as usize
+    }
+    fn accounts(&self) -> &[u8] {
+        &self.accounts
+    }
+    fn data(&self) -> &[u8] {
+        &self.data
+    }
+}

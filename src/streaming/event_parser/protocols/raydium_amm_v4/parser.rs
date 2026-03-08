@@ -8,13 +8,13 @@ use crate::streaming::event_parser::{
 };
 use solana_sdk::pubkey::Pubkey;
 
-/// Raydium AMM V4程序ID
+/// Raydium AMM V4 Program ID
 pub const RAYDIUM_AMM_V4_PROGRAM_ID: Pubkey =
     solana_sdk::pubkey!("675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8");
 
-/// 解析 Raydium AMM V4 instruction data
+/// Parse Raydium AMM V4 instruction data
 ///
-/// 根据判别器路由到具体的 instruction 解析函数
+/// Routes to specific instruction parsing functions based on the discriminator
 pub fn parse_raydium_amm_v4_instruction_data(
     discriminator: &[u8],
     data: &[u8],
@@ -38,9 +38,9 @@ pub fn parse_raydium_amm_v4_instruction_data(
     }
 }
 
-/// 解析 Raydium AMM V4 inner instruction data
+/// Parse Raydium AMM V4 inner instruction data
 ///
-/// Raydium AMM V4 没有 inner instruction 事件
+/// Raydium AMM V4 does not have inner instruction events
 pub fn parse_raydium_amm_v4_inner_instruction_data(
     _discriminator: &[u8],
     _data: &[u8],
@@ -50,9 +50,9 @@ pub fn parse_raydium_amm_v4_inner_instruction_data(
 }
 
 
-/// 解析 Raydium AMM V4 账户数据
+/// Parse Raydium AMM V4 account data
 ///
-/// 根据判别器路由到具体的账户解析函数
+/// Routes to specific account parsing functions based on the discriminator
 pub fn parse_raydium_amm_v4_account_data(
     discriminator: &[u8],
     account: &crate::streaming::grpc::AccountPretty,
@@ -67,7 +67,7 @@ pub fn parse_raydium_amm_v4_account_data(
 }
 
 
-/// 解析提现指令事件
+/// Parse withdraw PNL instruction event
 fn parse_withdraw_pnl_instruction(
     _data: &[u8],
     accounts: &[Pubkey],
@@ -101,7 +101,7 @@ fn parse_withdraw_pnl_instruction(
     }))
 }
 
-/// 解析移除流动性指令事件
+/// Parse withdraw (remove liquidity) instruction event
 fn parse_withdraw_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -143,7 +143,7 @@ fn parse_withdraw_instruction(
     }))
 }
 
-/// 解析初始化指令事件
+/// Parse initialize2 instruction event
 fn parse_initialize2_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -190,7 +190,7 @@ fn parse_initialize2_instruction(
     }))
 }
 
-/// 解析添加流动性指令事件
+/// Parse deposit (add liquidity) instruction event
 fn parse_deposit_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -228,7 +228,7 @@ fn parse_deposit_instruction(
     }))
 }
 
-/// 解析买入指令事件
+/// Parse swap (base output) instruction event
 fn parse_swap_base_output_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -244,8 +244,8 @@ fn parse_swap_base_output_instruction(
 
     let mut accounts = accounts.to_vec();
     if accounts.len() == 17 {
-        // 添加一个默认的 Pubkey 作为 amm_target_orders 的占位符
-        // 因为在某些情况下，amm_target_orders 可能是可选的
+        // Add a default Pubkey as a placeholder for amm_target_orders
+        // Because in some cases, amm_target_orders might be optional
         accounts.insert(4, Pubkey::default());
     }
 
@@ -277,7 +277,7 @@ fn parse_swap_base_output_instruction(
     }))
 }
 
-/// 解析买入指令事件
+/// Parse swap (base input) instruction event
 fn parse_swap_base_input_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -293,8 +293,8 @@ fn parse_swap_base_input_instruction(
 
     let mut accounts = accounts.to_vec();
     if accounts.len() == 17 {
-        // 添加一个默认的 Pubkey 作为 amm_target_orders 的占位符
-        // 因为在某些情况下，amm_target_orders 可能是可选的
+        // Add a default Pubkey as a placeholder for amm_target_orders
+        // Because in some cases, amm_target_orders might be optional
         accounts.insert(4, Pubkey::default());
     }
 

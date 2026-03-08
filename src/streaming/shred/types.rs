@@ -1,17 +1,17 @@
 use solana_sdk::transaction::VersionedTransaction;
 
-/// 携带槽位信息的交易
+/// Transaction with slot information
 #[derive(Debug, Clone, Default)]
 pub struct TransactionWithSlot {
     pub transaction: VersionedTransaction,
     pub slot: u64,
     pub recv_us: i64,
-    /// 交易在 entry 内的索引（shredstream 无 slot 级 index 时用作 best-effort）
+    /// Transaction index within the entry (best-effort when shredstream has no slot-level index)
     pub tx_index: Option<u64>,
 }
 
 impl TransactionWithSlot {
-    /// 创建新的带槽位的交易
+    /// Create a new transaction with slot info
     pub fn new(
         transaction: VersionedTransaction,
         slot: u64,

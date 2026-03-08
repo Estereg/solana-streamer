@@ -9,13 +9,13 @@ use crate::streaming::event_parser::{
 };
 use solana_sdk::pubkey::Pubkey;
 
-/// PumpFun程序ID
+/// PumpFun Program ID
 pub const PUMPFUN_PROGRAM_ID: Pubkey =
     solana_sdk::pubkey!("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P");
 
-/// 解析 PumpFun instruction data
+/// Parse PumpFun instruction data
 ///
-/// 根据判别器路由到具体的 instruction 解析函数
+/// Routes to specific instruction parsing functions based on the discriminator
 pub fn parse_pumpfun_instruction_data(
     discriminator: &[u8],
     data: &[u8],
@@ -35,9 +35,9 @@ pub fn parse_pumpfun_instruction_data(
     }
 }
 
-/// 解析 PumpFun inner instruction data
+/// Parse PumpFun inner instruction data
 ///
-/// 根据判别器路由到具体的 inner instruction 解析函数
+/// Routes to specific inner instruction parsing functions based on the discriminator
 pub fn parse_pumpfun_inner_instruction_data(
     discriminator: &[u8],
     data: &[u8],
@@ -53,9 +53,9 @@ pub fn parse_pumpfun_inner_instruction_data(
     }
 }
 
-/// 解析 PumpFun 账户数据
+/// Parse PumpFun account data
 ///
-/// 根据判别器路由到具体的账户解析函数
+/// Routes to specific account parsing functions based on the discriminator
 pub fn parse_pumpfun_account_data(
     discriminator: &[u8],
     account: &crate::streaming::grpc::AccountPretty,
@@ -76,7 +76,7 @@ pub fn parse_pumpfun_account_data(
     }
 }
 
-/// 解析迁移事件
+/// Parse migration event
 fn parse_migrate_inner_instruction(data: &[u8], mut metadata: EventMetadata) -> Option<DexEvent> {
     metadata.event_type = EventType::PumpFunMigrate;
     if let Some(event) = pumpfun_migrate_event_log_decode(data) {
@@ -86,7 +86,7 @@ fn parse_migrate_inner_instruction(data: &[u8], mut metadata: EventMetadata) -> 
     }
 }
 
-/// 解析创建代币日志事件
+/// Parse token creation log event
 fn parse_create_token_inner_instruction(
     data: &[u8],
     mut metadata: EventMetadata,
@@ -99,10 +99,10 @@ fn parse_create_token_inner_instruction(
     }
 }
 
-/// 解析交易事件 (inner instruction 不设置 event_type，因为不知道是 Buy 还是 Sell)
+/// Parse trade event (inner instructions don't set event_type as Buy/Sell is unknown here)
 fn parse_trade_inner_instruction(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
-    // 注意：inner instruction 的 trade event 不设置 event_type
-    // 因为它会被合并到 instruction event 中，而 instruction event 已经设置了正确的 event_type
+    // Note: trade event in inner instructions does not set event_type
+    // It will be merged into the main instruction event which already has the correct event_type
     if let Some(event) = pumpfun_trade_event_log_decode(data) {
         Some(DexEvent::PumpFunTradeEvent(PumpFunTradeEvent { metadata, ..event }))
     } else {
@@ -110,11 +110,11 @@ fn parse_trade_inner_instruction(data: &[u8], metadata: EventMetadata) -> Option
     }
 }
 
-/// 解析创建代币指令事件
-/// 账户: 0: mint, 1: mint_authority, 2: bonding_curve, 3: associated_bonding_curve, 4: global,
+/// Parse token creation instruction event
+/// Accounts: 0: mint, 1: mint_authority, 2: bonding_curve, 3: associated_bonding_curve, 4: global,
 /// 5: mpl_token_metadata, 6: metadata_account, 7: user, 8: system_program, 9: token_program,
 /// 10: associated_token_program, 11: rent, 12: event_authority, 13: program.
-/// 共 14 个固定账户，不足时返回 None 避免越界。
+/// Total of 14 fixed accounts; returns None if accounts are insufficient to avoid index out of bounds.
 fn parse_create_token_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -187,13 +187,13 @@ fn parse_create_token_instruction(
     }))
 }
 
-/// 解析创建 V2 代币指令事件 (SPL-22 Token, Mayhem Mode)
-/// 账户: 0: mint, 1: mint_authority, 2: bonding_curve, 3: associated_bonding_curve, 4: global,
+/// Parse V2 token creation instruction event (SPL-2022 Token, Mayhem Mode)
+/// Accounts: 0: mint, 1: mint_authority, 2: bonding_curve, 3: associated_bonding_curve, 4: global,
 /// 5: user, 6: system_program, 7: token_program, 8: associated_token_program, 9: mayhem_program_id,
 /// 10: global_params, 11: sol_vault, 12: mayhem_state, 13: mayhem_token_vault, 14: event_authority, 15: program.
-/// 共 16 个固定账户，不足时返回 None 避免越界。
-/// 注意：shredstream 路径仅传入 static_account_keys，若交易使用 Address Lookup Tables，
-/// 无法解析 loaded_addresses，部分账户会以 default 填充，导致 token_program/global 等错误。
+/// Total of 16 fixed accounts; returns None if accounts are insufficient to avoid index out of bounds.
+/// Note: ShredStream path only provides static_account_keys. If the transaction uses Address Lookup Tables,
+/// loaded_addresses cannot be resolved, causing some accounts to be filled with defaults (e.g., token_program/global may be wrong).
 fn parse_create_v2_token_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -394,8 +394,8 @@ fn parse_sell_instruction(
     }))
 }
 
-/// 解析迁移指令事件
-/// 共 24 个固定账户: 0: global, 1: withdraw_authority, 2: mint, 3: bonding_curve, 4: associated_bonding_curve,
+/// Parse migration instruction event
+/// Total of 24 fixed accounts: 0: global, 1: withdraw_authority, 2: mint, 3: bonding_curve, 4: associated_bonding_curve,
 /// 5: user, 6: system_program, 7: token_program, 8: pump_amm, 9: pool, 10: pool_authority,
 /// 11: pool_authority_mint_account, 12: pool_authority_wsol_account, 13: amm_global_config, 14: wsol_mint,
 /// 15: lp_mint, 16: user_pool_token_account, 17: pool_base_token_account, 18: pool_quote_token_account,

@@ -6,7 +6,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use solana_sdk::pubkey::Pubkey;
 
-/// 交易
+/// Swap event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RaydiumClmmSwapEvent {
     pub metadata: EventMetadata,
@@ -28,7 +28,7 @@ pub struct RaydiumClmmSwapEvent {
 }
 
 
-/// 交易v2
+/// Swap V2 event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RaydiumClmmSwapV2Event {
     pub metadata: EventMetadata,
@@ -52,7 +52,7 @@ pub struct RaydiumClmmSwapV2Event {
     pub remaining_accounts: Vec<Pubkey>,
 }
 
-/// 关闭仓位
+/// Close position event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RaydiumClmmClosePositionEvent {
     pub metadata: EventMetadata,
@@ -64,7 +64,7 @@ pub struct RaydiumClmmClosePositionEvent {
     pub token_program: Pubkey,
 }
 
-/// 减少流动性v2
+/// Decrease liquidity V2 event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RaydiumClmmDecreaseLiquidityV2Event {
     pub metadata: EventMetadata,
@@ -90,7 +90,7 @@ pub struct RaydiumClmmDecreaseLiquidityV2Event {
     pub remaining_accounts: Vec<Pubkey>,
 }
 
-/// 创建池
+/// Create pool event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RaydiumClmmCreatePoolEvent {
     pub metadata: EventMetadata,
@@ -111,7 +111,7 @@ pub struct RaydiumClmmCreatePoolEvent {
     pub rent: Pubkey,
 }
 
-/// 增加流动性v2
+/// Increase liquidity V2 event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RaydiumClmmIncreaseLiquidityV2Event {
     pub metadata: EventMetadata,
@@ -136,7 +136,7 @@ pub struct RaydiumClmmIncreaseLiquidityV2Event {
     pub vault1_mint: Pubkey,
 }
 
-/// 打开仓位v2
+/// Open position with Token-2022 NFT event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RaydiumClmmOpenPositionWithToken22NftEvent {
     pub metadata: EventMetadata,
@@ -172,7 +172,7 @@ pub struct RaydiumClmmOpenPositionWithToken22NftEvent {
     pub vault1_mint: Pubkey,
 }
 
-/// 打开仓位V2
+/// Open position V2 event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RaydiumClmmOpenPositionV2Event {
     pub metadata: EventMetadata,
@@ -211,7 +211,7 @@ pub struct RaydiumClmmOpenPositionV2Event {
     pub remaining_accounts: Vec<Pubkey>,
 }
 
-/// 池配置
+/// AmmConfig account event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RaydiumClmmAmmConfigAccountEvent {
     pub metadata: EventMetadata,
@@ -223,7 +223,7 @@ pub struct RaydiumClmmAmmConfigAccountEvent {
     pub amm_config: AmmConfig,
 }
 
-/// 池状态
+/// PoolState account event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RaydiumClmmPoolStateAccountEvent {
     pub metadata: EventMetadata,
@@ -235,7 +235,7 @@ pub struct RaydiumClmmPoolStateAccountEvent {
     pub pool_state: PoolState,
 }
 
-/// 池状态
+/// TickArrayState account event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RaydiumClmmTickArrayStateAccountEvent {
     pub metadata: EventMetadata,
@@ -247,9 +247,9 @@ pub struct RaydiumClmmTickArrayStateAccountEvent {
     pub tick_array_state: TickArrayState,
 }
 
-/// 事件鉴别器常量
+/// Discriminators for Raydium CLMM events
 pub mod discriminators {
-    // 指令鉴别器
+    // Instruction Discriminators
     pub const SWAP: &[u8] = &[248, 198, 158, 145, 225, 117, 135, 200];
     pub const SWAP_V2: &[u8] = &[43, 4, 237, 11, 26, 201, 30, 98];
     pub const CLOSE_POSITION: &[u8] = &[123, 134, 81, 0, 49, 68, 98, 98];
@@ -259,7 +259,7 @@ pub mod discriminators {
     pub const OPEN_POSITION_WITH_TOKEN_22_NFT: &[u8] = &[77, 255, 174, 82, 125, 29, 201, 46];
     pub const OPEN_POSITION_V2: &[u8] = &[77, 184, 74, 214, 112, 86, 241, 199];
 
-    // 账号鉴别器
+    // Account Discriminators
     pub const AMM_CONFIG: &[u8] = &[218, 244, 33, 104, 203, 203, 43, 111];
     pub const POOL_STATE: &[u8] = &[247, 237, 227, 245, 215, 195, 222, 70];
     pub const TICK_ARRAY_STATE: &[u8] = &[192, 155, 85, 205, 49, 249, 129, 42];

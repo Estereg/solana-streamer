@@ -4,12 +4,11 @@ use solana_streamer_sdk::streaming::event_parser::core::event_parser::EventParse
 use solana_streamer_sdk::streaming::event_parser::Protocol;
 use solana_streamer_sdk::streaming::event_parser::DexEvent;
 use std::str::FromStr;
-use std::sync::Arc;
 /// Get transaction data based on transaction signature
 #[tokio::main]
 async fn main() -> Result<()> {
     let signatures = vec![
-        "4PsHYajH87x2zJPEGZczZtd2ksibuMCFPonC24jk5mTGZ46hzvjpzM5UZuLz9sRv79MkCBbtDqwJapGPTSkCFKoL",
+        "4czSSZxEYpVcCYHQYRaMEnwJ7FVoB6HvWVxE2cS1D9u5RexR3NzdtrMQVXiYYJX4i5ZfTHBiHs1JSEzAiHWJzGiD",
     ];
     // Validate signature format
     let mut valid_signatures = Vec::new();
@@ -176,7 +175,6 @@ async fn get_single_transaction_details(signature_str: &str) -> Result<()> {
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_micros() as i64;
-            let bot_wallet = None;
             let tx_index = None;
 
             let protocols = vec![
@@ -190,9 +188,9 @@ async fn get_single_transaction_details(signature_str: &str) -> Result<()> {
             ];
 
             // Create callback
-            let callback = Arc::new(move |event: DexEvent| {
+            let mut callback = |event: &DexEvent| {
                 println!("{:?}\n", event);
-            });
+            };
 
             // Call parse_instruction_events_from_versioned_transaction
             EventParser::parse_instruction_events_from_versioned_transaction(
@@ -205,9 +203,8 @@ async fn get_single_transaction_details(signature_str: &str) -> Result<()> {
                 recv_us,
                 &accounts,
                 &inner_instructions_vec,
-                bot_wallet,
                 tx_index,
-                callback,
+                &mut callback,
             )
             .await?;
         }

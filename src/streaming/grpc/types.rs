@@ -68,7 +68,7 @@ impl fmt::Debug for BlockMetaPretty {
 #[derive(Clone)]
 pub struct TransactionPretty {
     pub slot: u64,
-    pub tx_index: Option<u64>, // 新增：交易在slot中的索引
+    pub tx_index: Option<u64>, // Transaction index within the slot
     pub block_hash: String,
     pub block_time: Option<Timestamp>,
     pub signature: Signature,
@@ -103,4 +103,3 @@ impl Default for TransactionPretty {
         }
     }
 }
-

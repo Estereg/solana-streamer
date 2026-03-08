@@ -60,10 +60,6 @@ pub struct BonkTradeEvent {
     #[borsh(skip)]
     pub quote_token_program: Pubkey,
     #[borsh(skip)]
-    pub is_dev_create_token_trade: bool,
-    #[borsh(skip)]
-    pub is_bot: bool,
-    #[borsh(skip)]
     pub system_program: Pubkey,
     #[borsh(skip)]
     pub platform_associated_account: Pubkey,
@@ -227,7 +223,7 @@ pub struct BonkMigrateToCpswapEvent {
     pub remaining_accounts: Vec<Pubkey>,
 }
 
-/// 池状态
+/// Pool state account event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BonkPoolStateAccountEvent {
     pub metadata: EventMetadata,
@@ -239,7 +235,7 @@ pub struct BonkPoolStateAccountEvent {
     pub pool_state: PoolState,
 }
 
-/// 全局配置
+/// Global config account event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BonkGlobalConfigAccountEvent {
     pub metadata: EventMetadata,
@@ -251,7 +247,7 @@ pub struct BonkGlobalConfigAccountEvent {
     pub global_config: GlobalConfig,
 }
 
-/// 平台配置
+/// Platform config account event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BonkPlatformConfigAccountEvent {
     pub metadata: EventMetadata,
@@ -284,7 +280,7 @@ pub mod discriminators {
     pub const MIGRATE_TO_AMM: &[u8] = &[207, 82, 192, 145, 254, 207, 145, 223];
     pub const MIGRATE_TO_CP_SWAP: &[u8] = &[136, 92, 200, 103, 28, 218, 144, 140];
 
-    // 账户鉴别器
+    // Account Discriminators
     pub const POOL_STATE_ACCOUNT: &[u8] = &[247, 237, 227, 245, 215, 195, 222, 70];
     pub const GLOBAL_CONFIG_ACCOUNT: &[u8] = &[149, 8, 156, 202, 160, 252, 176, 217];
     pub const PLATFORM_CONFIG_ACCOUNT: &[u8] = &[160, 78, 128, 0, 248, 83, 230, 160];
