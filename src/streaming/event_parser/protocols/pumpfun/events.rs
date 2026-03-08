@@ -295,6 +295,9 @@ pub struct PumpFunTradeEvent {
     pub fee_config: Pubkey,
     #[borsh(skip)]
     pub fee_program: Pubkey,
+    /// 17th instruction account (index 16), shown as "Account" on block explorers; present on some buy/sell.
+    #[borsh(skip)]
+    pub account: Option<Pubkey>,
 
     // === IDL TradeEvent extension fields (aligned with sol-parser-sdk / pumpfun IDL) ===
     #[borsh(skip)]
