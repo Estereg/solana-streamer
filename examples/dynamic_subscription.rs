@@ -21,8 +21,6 @@ const MONITORING_DURATION_SECS: u64 = 10;
 /// Demonstrates dynamic subscription updates and filter changes in real-time
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::init();
-
     println!("Connecting to Yellowstone gRPC at {}", GRPC_ENDPOINT);
     let client =
         Arc::new(YellowstoneGrpc::new(GRPC_ENDPOINT.to_string(), API_KEY.map(|s| s.to_string()))?);

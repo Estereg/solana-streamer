@@ -137,9 +137,8 @@ impl Default for ShredPoolManager {
 }
 
 // 全局 Shred 池管理器实例
-lazy_static::lazy_static! {
-    pub static ref GLOBAL_SHRED_POOL_MANAGER: ShredPoolManager = ShredPoolManager::new();
-}
+pub static GLOBAL_SHRED_POOL_MANAGER: std::sync::LazyLock<ShredPoolManager> =
+    std::sync::LazyLock::new(ShredPoolManager::new);
 
 /// 便捷的全局工厂函数
 pub mod factory {

@@ -91,7 +91,12 @@ pub async fn process_grpc_transaction(
             let block_time_ms = block_meta_pretty
                 .block_time
                 .map(|ts| ts.seconds * 1000 + ts.nanos as i64 / 1_000_000)
-                .unwrap_or_else(|| chrono::Utc::now().timestamp_millis());
+                .unwrap_or_else(|| {
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_millis() as i64
+                });
 
             let block_meta_event = CommonEventParser::generate_block_meta_event(
                 block_meta_pretty.slot,

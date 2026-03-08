@@ -406,9 +406,8 @@ impl EventPrettyPool {
 }
 
 // 全局池管理器实例
-lazy_static::lazy_static! {
-    pub static ref GLOBAL_POOL_MANAGER: PoolManager = PoolManager::new();
-}
+pub static GLOBAL_POOL_MANAGER: std::sync::LazyLock<PoolManager> =
+    std::sync::LazyLock::new(PoolManager::new);
 
 /// 便捷的全局工厂函数
 pub mod factory {
