@@ -85,7 +85,7 @@ impl EventParser {
                 let recent_blockhash = if message.recent_blockhash.is_empty() {
                     None
                 } else {
-                    Some(bs58::encode(&message.recent_blockhash).into_string())
+                    Some(solana_sdk::bs58::encode(&message.recent_blockhash).into_string())
                 };
                 Self::parse_instruction_events_from_grpc_transaction(
                     protocols,

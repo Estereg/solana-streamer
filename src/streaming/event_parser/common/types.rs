@@ -2,7 +2,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use crossbeam_queue::ArrayQueue;
 use serde::{Deserialize, Serialize};
 use solana_sdk::{pubkey::Pubkey, signature::Signature};
-use std::{borrow::Cow, fmt, str::FromStr, sync::Arc};
+use std::{borrow::Cow, fmt, sync::Arc};
 
 use crate::streaming::event_parser::DexEvent;
 
@@ -169,8 +169,6 @@ impl fmt::Display for EventType {
     }
 }
 
-
-
 #[derive(
     Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, BorshSerialize, BorshDeserialize,
 )]
@@ -243,11 +241,11 @@ impl EventMetadata {
 }
 
 static SOL_MINT: std::sync::LazyLock<Pubkey> =
-    std::sync::LazyLock::new(|| Pubkey::from_str("So11111111111111111111111111111111111111111").unwrap());
+    std::sync::LazyLock::new(spl_token::native_mint::id);
 static SYSTEM_PROGRAMS: std::sync::LazyLock<[Pubkey; 3]> = std::sync::LazyLock::new(|| [
-    Pubkey::from_str("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA").unwrap(),
-    Pubkey::from_str("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb").unwrap(),
-    Pubkey::from_str("11111111111111111111111111111111").unwrap(),
+    spl_token::id(),
+    spl_token_2022::id(),
+    solana_sdk::pubkey!("11111111111111111111111111111111"),
 ]);
 
 /// Trait abstracting over different inner-instruction types for swap data extraction
