@@ -268,12 +268,12 @@ fn parse_create_v2_token_instruction(
     }))
 }
 
-/// 解析买入指令事件
-/// Buy 指令共 16 个固定账户（与 idl/pumpfun.json 一致）:
+/// Parse buy instruction event.
+/// Buy has 16 fixed accounts + optional 17th (index 16, "Account" on block explorers):
 /// 0: global, 1: fee_recipient, 2: mint, 3: bonding_curve, 4: associated_bonding_curve,
 /// 5: associated_user, 6: user, 7: system_program, 8: token_program, 9: creator_vault,
 /// 10: event_authority, 11: program, 12: global_volume_accumulator, 13: user_volume_accumulator,
-/// 14: fee_config, 15: fee_program.
+/// 14: fee_config, 15: fee_program, 16 (optional): account.
 fn parse_buy_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -304,6 +304,7 @@ fn parse_buy_instruction(
         user_volume_accumulator: accounts[13],
         fee_config: accounts[14],
         fee_program: accounts[15],
+        account: accounts.get(16).copied(),
         max_sol_cost,
         amount,
         is_buy: true,
@@ -311,12 +312,9 @@ fn parse_buy_instruction(
     }))
 }
 
-/// 解析 buy_exact_sol_in 指令事件
-/// 账户布局与 buy 相同，共 16 个固定账户: 0: global, 1: fee_recipient, 2: mint, 3: bonding_curve,
-/// 4: associated_bonding_curve, 5: associated_user, 6: user, 7: system_program, 8: token_program,
-/// 9: creator_vault, 10: event_authority, 11: program, 12: global_volume_accumulator,
-/// 13: user_volume_accumulator, 14: fee_config, 15: fee_program.
-/// 参数顺序与 buy 不同: spendable_sol_in (SOL), min_tokens_out (token).
+/// Parse buy_exact_sol_in instruction event.
+/// Same account layout as buy: 16 fixed + optional 17th (index 16).
+/// Args: spendable_sol_in (SOL), min_tokens_out (token).
 fn parse_buy_exact_sol_in_instruction(
     data: &[u8], accounts: &[Pubkey],
     mut metadata: EventMetadata,
@@ -327,7 +325,6 @@ fn parse_buy_exact_sol_in_instruction(
         return None;
     }
 
-    // 注意：buy_exact_sol_in 的参数顺序是先 SOL 再 token
     let spendable_sol_in = u64::from_le_bytes(data[0..8].try_into().unwrap());
     let min_tokens_out = u64::from_le_bytes(data[8..16].try_into().unwrap());
 
@@ -349,19 +346,16 @@ fn parse_buy_exact_sol_in_instruction(
         user_volume_accumulator: accounts[13],
         fee_config: accounts[14],
         fee_program: accounts[15],
-        max_sol_cost: spendable_sol_in,  // Map spendable_sol_in to max_sol_cost
-        amount: min_tokens_out,           // Map min_tokens_out to amount
+        account: accounts.get(16).copied(),
+        max_sol_cost: spendable_sol_in,
+        amount: min_tokens_out,
         is_buy: true,
         ..Default::default()
     }))
 }
 
-/// 解析卖出指令事件
-/// Sell 指令共 14 个固定账户（与 idl/pumpfun.json 一致）:
-/// 0: global, 1: fee_recipient, 2: mint, 3: bonding_curve, 4: associated_bonding_curve,
-/// 5: associated_user, 6: user, 7: system_program, 8: creator_vault, 9: token_program,
-/// 10: event_authority, 11: program, 12: fee_config, 13: fee_program.
-/// remaining_accounts 可能含 user_volume_accumulator（返现）等。
+/// Parse sell instruction event.
+/// Sell has 14 fixed accounts; some versions pass 17 accounts, index 16 = "Account" on block explorers.
 fn parse_sell_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -392,6 +386,7 @@ fn parse_sell_instruction(
         user_volume_accumulator: Pubkey::default(),
         fee_config: accounts[12],
         fee_program: accounts[13],
+        account: accounts.get(16).copied(),
         min_sol_output,
         amount,
         is_buy: false,
