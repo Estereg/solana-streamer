@@ -31,6 +31,9 @@ pub fn merge(instruction_event: &mut DexEvent, cpi_log_event: DexEvent) {
                 e.cashback_fee_basis_points = cpie.cashback_fee_basis_points;
                 e.cashback = cpie.cashback;
                 e.is_cashback_coin = cpie.is_cashback_coin;
+                if cpie.account.is_some() {
+                    e.account = cpie.account;
+                }
             }
             _ => {}
         },
