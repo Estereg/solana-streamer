@@ -43,31 +43,23 @@ pub struct VestingParams {
     pub unlock_period: u64,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub enum AmmFeeOn {
+    #[default]
     QuoteToken,
     BothToken,
 }
 
-impl Default for AmmFeeOn {
-    fn default() -> Self {
-        Self::QuoteToken
-    }
-}
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 #[borsh(use_discriminant = true)]
 #[repr(u8)]
 pub enum AmmCreatorFeeOn {
+    #[default]
     QuoteToken = 0,
     BothToken = 1,
 }
 
-impl Default for AmmCreatorFeeOn {
-    fn default() -> Self {
-        Self::QuoteToken
-    }
-}
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct ConstantCurve {
@@ -181,8 +173,9 @@ impl Default for PoolState {
     }
 }
 
-pub const POOL_STATE_SIZE: usize = 8 + 1 * 5 + 8 * 10 + 32 * 7 + 8 * 8 + 8 * 5 + 1 + 1 + 8 + 54;
+pub const POOL_STATE_SIZE: usize = 8 + 5 + 8 * 10 + 32 * 7 + 8 * 8 + 8 * 5 + 1 + 1 + 8 + 54;
 
+#[must_use]
 pub fn pool_state_decode(data: &[u8]) -> Option<PoolState> {
     if data.len() < POOL_STATE_SIZE {
         return None;
@@ -190,14 +183,15 @@ pub fn pool_state_decode(data: &[u8]) -> Option<PoolState> {
     borsh::from_slice::<PoolState>(&data[..POOL_STATE_SIZE]).ok()
 }
 
+#[must_use]
 pub fn pool_state_parser(account: &AccountPretty, mut metadata: EventMetadata) -> Option<DexEvent> {
     metadata.event_type = EventType::AccountBonkPoolState;
 
     if account.data.len() < POOL_STATE_SIZE + 8 {
         return None;
     }
-    if let Some(pool_state) = pool_state_decode(&account.data[8..POOL_STATE_SIZE + 8]) {
-        Some(DexEvent::BonkPoolStateAccountEvent(BonkPoolStateAccountEvent {
+    pool_state_decode(&account.data[8..POOL_STATE_SIZE + 8]).map(|pool_state| {
+        DexEvent::BonkPoolStateAccountEvent(BonkPoolStateAccountEvent {
             metadata,
             pubkey: account.pubkey,
             executable: account.executable,
@@ -205,10 +199,8 @@ pub fn pool_state_parser(account: &AccountPretty, mut metadata: EventMetadata) -
             owner: account.owner,
             rent_epoch: account.rent_epoch,
             pool_state,
-        }))
-    } else {
-        None
-    }
+        })
+    })
 }
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct GlobalConfig {
@@ -233,6 +225,7 @@ pub struct GlobalConfig {
 
 pub const GLOBAL_CONFIG_SIZE: usize = 8 + 1 + 2 + 8 * 8 + 32 * 5 + 8 * 16;
 
+#[must_use]
 pub fn global_config_decode(data: &[u8]) -> Option<GlobalConfig> {
     if data.len() < GLOBAL_CONFIG_SIZE {
         return None;
@@ -240,6 +233,7 @@ pub fn global_config_decode(data: &[u8]) -> Option<GlobalConfig> {
     borsh::from_slice::<GlobalConfig>(&data[..GLOBAL_CONFIG_SIZE]).ok()
 }
 
+#[must_use]
 pub fn global_config_parser(
     account: &AccountPretty,
     mut metadata: EventMetadata,
@@ -249,8 +243,8 @@ pub fn global_config_parser(
     if account.data.len() < GLOBAL_CONFIG_SIZE + 8 {
         return None;
     }
-    if let Some(global_config) = global_config_decode(&account.data[8..GLOBAL_CONFIG_SIZE + 8]) {
-        Some(DexEvent::BonkGlobalConfigAccountEvent(BonkGlobalConfigAccountEvent {
+    global_config_decode(&account.data[8..GLOBAL_CONFIG_SIZE + 8]).map(|global_config| {
+        DexEvent::BonkGlobalConfigAccountEvent(BonkGlobalConfigAccountEvent {
             metadata,
             pubkey: account.pubkey,
             executable: account.executable,
@@ -258,10 +252,8 @@ pub fn global_config_parser(
             owner: account.owner,
             rent_epoch: account.rent_epoch,
             global_config,
-        }))
-    } else {
-        None
-    }
+        })
+    })
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
@@ -351,6 +343,7 @@ impl Default for PlatformConfig {
 
 pub const PLATFORM_CONFIG_SIZE: usize = 8 + 32 * 2 + 8 * 4 + 64 + 256 + 256 + 32 + 8 + 32 + 32 + 8 + 32 + 108;
 
+#[must_use]
 pub fn platform_config_decode(data: &[u8]) -> Option<PlatformConfig> {
     if data.len() < PLATFORM_CONFIG_SIZE {
         return None;
@@ -358,6 +351,7 @@ pub fn platform_config_decode(data: &[u8]) -> Option<PlatformConfig> {
     borsh::from_slice::<PlatformConfig>(&data[..PLATFORM_CONFIG_SIZE]).ok()
 }
 
+#[must_use]
 pub fn platform_config_parser(
     account: &AccountPretty,
     mut metadata: EventMetadata,
@@ -367,10 +361,8 @@ pub fn platform_config_parser(
     if account.data.len() < PLATFORM_CONFIG_SIZE + 8 {
         return None;
     }
-    if let Some(platform_config) =
-        platform_config_decode(&account.data[8..PLATFORM_CONFIG_SIZE + 8])
-    {
-        Some(DexEvent::BonkPlatformConfigAccountEvent(BonkPlatformConfigAccountEvent {
+    platform_config_decode(&account.data[8..PLATFORM_CONFIG_SIZE + 8]).map(|platform_config| {
+        DexEvent::BonkPlatformConfigAccountEvent(BonkPlatformConfigAccountEvent {
             metadata,
             pubkey: account.pubkey,
             executable: account.executable,
@@ -378,8 +370,6 @@ pub fn platform_config_parser(
             owner: account.owner,
             rent_epoch: account.rent_epoch,
             platform_config,
-        }))
-    } else {
-        None
-    }
+        })
+    })
 }

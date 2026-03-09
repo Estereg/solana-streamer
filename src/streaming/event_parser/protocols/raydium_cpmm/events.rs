@@ -112,7 +112,7 @@ pub struct RaydiumCpmmWithdrawEvent {
     pub memo_program: Pubkey,
 }
 
-/// AmmConfig account event structure
+/// `AmmConfig` account event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct RaydiumCpmmAmmConfigAccountEvent {
     #[borsh(skip)]
@@ -125,7 +125,7 @@ pub struct RaydiumCpmmAmmConfigAccountEvent {
     pub amm_config: AmmConfig,
 }
 
-/// PoolState account event structure
+/// `PoolState` account event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct RaydiumCpmmPoolStateAccountEvent {
     #[borsh(skip)]

@@ -26,6 +26,7 @@ pub struct BondingCurve {
 
 pub const BONDING_CURVE_SIZE: usize = 8 * 5 + 1 + 32 + 1 + 1;
 
+#[must_use]
 pub fn bonding_curve_decode(data: &[u8]) -> Option<BondingCurve> {
     if data.len() < BONDING_CURVE_SIZE {
         return None;
@@ -33,6 +34,7 @@ pub fn bonding_curve_decode(data: &[u8]) -> Option<BondingCurve> {
     borsh::from_slice::<BondingCurve>(&data[..BONDING_CURVE_SIZE]).ok()
 }
 
+#[must_use]
 pub fn bonding_curve_parser(
     account: &AccountPretty,
     mut metadata: EventMetadata,
@@ -42,8 +44,8 @@ pub fn bonding_curve_parser(
     if account.data.len() < BONDING_CURVE_SIZE + 8 {
         return None;
     }
-    if let Some(bonding_curve) = bonding_curve_decode(&account.data[8..BONDING_CURVE_SIZE + 8]) {
-        Some(DexEvent::PumpFunBondingCurveAccountEvent(PumpFunBondingCurveAccountEvent {
+    bonding_curve_decode(&account.data[8..BONDING_CURVE_SIZE + 8]).map(|bonding_curve| {
+        DexEvent::PumpFunBondingCurveAccountEvent(PumpFunBondingCurveAccountEvent {
             metadata,
             pubkey: account.pubkey,
             executable: account.executable,
@@ -51,12 +53,11 @@ pub fn bonding_curve_parser(
             owner: account.owner,
             rent_epoch: account.rent_epoch,
             bonding_curve,
-        }))
-    } else {
-        None
-    }
+        })
+    })
 }
 
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct Global {
     pub initialized: bool,
@@ -84,6 +85,7 @@ pub struct Global {
 
 pub const GLOBAL_SIZE: usize = 1 + 32 * 2 + 8 * 5 + 32 + 1 + 8 * 2 + 32 * 7 + 32 * 2 + 1 + 32 * 2 + 1 + 32 * 7 + 1;
 
+#[must_use]
 pub fn global_decode(data: &[u8]) -> Option<Global> {
     if data.len() < GLOBAL_SIZE {
         return None;
@@ -91,14 +93,15 @@ pub fn global_decode(data: &[u8]) -> Option<Global> {
     borsh::from_slice::<Global>(&data[..GLOBAL_SIZE]).ok()
 }
 
+#[must_use]
 pub fn global_parser(account: &AccountPretty, mut metadata: EventMetadata) -> Option<DexEvent> {
     metadata.event_type = EventType::AccountPumpFunGlobal;
 
     if account.data.len() < GLOBAL_SIZE + 8 {
         return None;
     }
-    if let Some(global) = global_decode(&account.data[8..GLOBAL_SIZE + 8]) {
-        Some(DexEvent::PumpFunGlobalAccountEvent(PumpFunGlobalAccountEvent {
+    global_decode(&account.data[8..GLOBAL_SIZE + 8]).map(|global| {
+        DexEvent::PumpFunGlobalAccountEvent(PumpFunGlobalAccountEvent {
             metadata,
             pubkey: account.pubkey,
             executable: account.executable,
@@ -106,8 +109,6 @@ pub fn global_parser(account: &AccountPretty, mut metadata: EventMetadata) -> Op
             owner: account.owner,
             rent_epoch: account.rent_epoch,
             global,
-        }))
-    } else {
-        None
-    }
+        })
+    })
 }

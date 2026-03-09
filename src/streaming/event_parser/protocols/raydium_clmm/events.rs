@@ -211,7 +211,7 @@ pub struct RaydiumClmmOpenPositionV2Event {
     pub remaining_accounts: Vec<Pubkey>,
 }
 
-/// AmmConfig account event structure
+/// `AmmConfig` account event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RaydiumClmmAmmConfigAccountEvent {
     pub metadata: EventMetadata,
@@ -223,7 +223,7 @@ pub struct RaydiumClmmAmmConfigAccountEvent {
     pub amm_config: AmmConfig,
 }
 
-/// PoolState account event structure
+/// `PoolState` account event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RaydiumClmmPoolStateAccountEvent {
     pub metadata: EventMetadata,
@@ -235,7 +235,7 @@ pub struct RaydiumClmmPoolStateAccountEvent {
     pub pool_state: PoolState,
 }
 
-/// TickArrayState account event structure
+/// `TickArrayState` account event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RaydiumClmmTickArrayStateAccountEvent {
     pub metadata: EventMetadata,

@@ -13,6 +13,7 @@ pub struct BlockMetaEvent {
 }
 
 impl BlockMetaEvent {
+    #[must_use]
     pub fn new(
         slot: u64,
         block_hash: String,

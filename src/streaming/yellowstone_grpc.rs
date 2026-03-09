@@ -4,16 +4,16 @@ use crate::streaming::common::{
     SubscriptionHandle,
 };
 use crate::streaming::event_parser::common::filter::EventTypeFilter;
-use crate::streaming::event_parser::{Protocol, DexEvent};
+use crate::streaming::event_parser::{DexEvent, Protocol};
 use crate::streaming::grpc::pool::factory;
 use crate::streaming::grpc::{EventPretty, SubscriptionManager};
 use anyhow::anyhow;
-use std::time::{SystemTime, UNIX_EPOCH};
 use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
 use log::error;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 use yellowstone_grpc_proto::geyser::subscribe_update::UpdateOneof;
 use yellowstone_grpc_proto::geyser::{
@@ -36,27 +36,33 @@ pub struct AccountFilter {
     pub filters: Vec<SubscribeRequestFilterAccountsFilter>,
 }
 
+#[derive(Clone)]
 pub struct YellowstoneGrpc {
-    pub endpoint: String,
-    pub x_token: Option<String>,
-    pub config: StreamClientConfig,
-    pub subscription_manager: SubscriptionManager,
-    pub subscription_handle: Arc<Mutex<Option<SubscriptionHandle>>>,
+    pub(crate) config: StreamClientConfig,
+    pub(crate) subscription_manager: SubscriptionManager,
+    pub(crate) subscription_handle: Arc<Mutex<Option<SubscriptionHandle>>>,
     // Dynamic subscription management fields
-    pub active_subscription: Arc<AtomicBool>,
-    pub control_tx: Arc<tokio::sync::Mutex<Option<mpsc::Sender<SubscribeRequest>>>>,
-    pub current_request: Arc<tokio::sync::RwLock<Option<SubscribeRequest>>>,
-
-    pub event_type_filter: Arc<tokio::sync::RwLock<Option<EventTypeFilter>>>,
+    pub(crate) active_subscription: Arc<AtomicBool>,
+    pub(crate) control_tx: Arc<tokio::sync::Mutex<Option<mpsc::Sender<SubscribeRequest>>>>,
+    pub(crate) current_request: Arc<tokio::sync::RwLock<Option<SubscribeRequest>>>,
+    pub(crate) event_type_filter: Arc<tokio::sync::RwLock<Option<EventTypeFilter>>>,
 }
 
 impl YellowstoneGrpc {
     /// Create client with default configuration
+    ///
+    /// # Errors
+    ///
+    /// Returns error if client construction fails.
     pub fn new(endpoint: String, x_token: Option<String>) -> AnyResult<Self> {
         Self::new_with_config(endpoint, x_token, StreamClientConfig::default())
     }
 
     /// Create client with custom configuration
+    ///
+    /// # Errors
+    ///
+    /// Returns error if client construction fails.
     pub fn new_with_config(
         endpoint: String,
         x_token: Option<String>,
@@ -64,12 +70,10 @@ impl YellowstoneGrpc {
     ) -> AnyResult<Self> {
         let _ = rustls::crypto::ring::default_provider().install_default().ok();
         let subscription_manager =
-            SubscriptionManager::new(endpoint.clone(), x_token.clone(), config.clone());
+            SubscriptionManager::new(endpoint, x_token, config.clone());
         MetricsManager::init(config.enable_metrics);
 
         Ok(Self {
-            endpoint,
-            x_token,
             config,
             subscription_manager,
             subscription_handle: Arc::new(Mutex::new(None)),
@@ -81,16 +85,18 @@ impl YellowstoneGrpc {
     }
 
     /// Get configuration
-    pub fn get_config(&self) -> &StreamClientConfig {
+    #[must_use]
+    pub const fn get_config(&self) -> &StreamClientConfig {
         &self.config
     }
 
     /// Update configuration
-    pub fn update_config(&mut self, config: StreamClientConfig) {
+    pub const fn update_config(&mut self, config: StreamClientConfig) {
         self.config = config;
     }
 
     /// Get performance metrics
+    #[must_use]
     pub fn get_metrics(&self) -> PerformanceMetrics {
         MetricsManager::global().get_metrics()
     }
@@ -101,14 +107,14 @@ impl YellowstoneGrpc {
     }
 
     /// Enable or disable performance monitoring
-    pub fn set_enable_metrics(&mut self, enabled: bool) {
+    pub const fn set_enable_metrics(&mut self, enabled: bool) {
         self.config.enable_metrics = enabled;
     }
 
     /// Stop current subscription
     pub async fn stop(&self) {
-        let mut handle_guard = self.subscription_handle.lock().await;
-        if let Some(handle) = handle_guard.take() {
+        let handle = self.subscription_handle.lock().await.take();
+        if let Some(handle) = handle {
             handle.stop();
         }
         *self.control_tx.lock().await = None;
@@ -122,17 +128,21 @@ impl YellowstoneGrpc {
     /// * `protocols` - List of protocols to monitor
     /// * `transaction_filter` - Transaction filter specifying accounts to include/exclude
     /// * `account_filter` - Account filter specifying accounts and owners to monitor
-    /// * `event_filter` - Optional event filter for further event filtering, no filtering if None
-    /// * `commitment` - Optional commitment level, defaults to Confirmed
+    /// * `event_type_filter` - Optional event filter for further event filtering, no filtering if `None`
+    /// * `commitment` - Optional commitment level, defaults to `Confirmed`
     /// * `callback` - Event callback function that receives parsed unified events
     ///
     /// # Returns
     /// Returns `AnyResult<()>`, `Ok(())` on success, error information on failure
+    ///
+    /// # Errors
+    /// Returns error if already subscribed or if gRPC connection fails.
+    #[allow(clippy::too_many_lines)]
     pub async fn subscribe_events_immediate<F>(
         &self,
         protocols: Vec<Protocol>,
-        transaction_filter: Vec<TransactionFilter>,
-        account_filter: Vec<AccountFilter>,
+        transaction_filter: &[TransactionFilter],
+        account_filter: &[AccountFilter],
         event_type_filter: Option<EventTypeFilter>,
         commitment: Option<CommitmentLevel>,
         callback: F,
@@ -149,11 +159,12 @@ impl YellowstoneGrpc {
             return Err(anyhow!("Already subscribed. Use update_subscription() to modify filters"));
         }
 
-        let mut metrics_handle = None;
         // Start auto performance monitoring (if enabled)
-        if self.config.enable_metrics {
-            metrics_handle = MetricsManager::global().start_auto_monitoring().await;
-        }
+        let metrics_handle = if self.config.enable_metrics {
+            MetricsManager::global().start_auto_monitoring()
+        } else {
+            None
+        };
 
         let transactions = self
             .subscription_manager
@@ -186,22 +197,26 @@ impl YellowstoneGrpc {
                                 let created_at = msg.created_at;
                                 match msg.update_oneof {
                                     Some(UpdateOneof::Account(account)) => {
-                                        let account_pretty = factory::create_account_pretty(account);
-                                        log::debug!("Received account: {:?}", account_pretty);
-                                        if let Err(e) = process_grpc_transaction(
-                                            EventPretty::Account(account_pretty),
-                                            &protocols,
-                                            event_type_filter.as_ref(),
-                                            callback.clone(),
-                                        )
-                                        .await
-                                        {
-                                            error!("Error processing account event: {e:?}");
+                                        match factory::create_account_pretty(account) {
+                                            Ok(account_pretty) => {
+                                                log::debug!("Received account: {account_pretty:?}");
+                                                if let Err(e) = process_grpc_transaction(
+                                                    EventPretty::Account(account_pretty),
+                                                    &protocols,
+                                                    event_type_filter.as_ref(),
+                                                    callback.clone(),
+                                                )
+                                                .await
+                                                {
+                                                    error!("Error processing account event: {e:?}");
+                                                }
+                                            }
+                                            Err(e) => error!("Failed to parse account update: {e:?}"),
                                         }
                                     }
                                     Some(UpdateOneof::BlockMeta(block_meta_update)) => {
                                         let block_meta_pretty = factory::create_block_meta_pretty(block_meta_update, created_at);
-                                        log::debug!("Received block meta: {:?}", block_meta_pretty);
+                                        log::debug!("Received block meta: {block_meta_pretty:?}");
                                         if let Err(e) = process_grpc_transaction(
                                             EventPretty::BlockMeta(block_meta_pretty),
                                             &protocols,
@@ -214,21 +229,25 @@ impl YellowstoneGrpc {
                                         }
                                     }
                                     Some(UpdateOneof::Transaction(transaction_update)) => {
-                                        let transaction_pretty = factory::create_transaction_pretty(transaction_update, created_at);
-                                        log::debug!(
-                                            "Received transaction: {} at slot {}",
-                                            transaction_pretty.signature,
-                                            transaction_pretty.slot
-                                        );
-                                        if let Err(e) = process_grpc_transaction(
-                                            EventPretty::Transaction(transaction_pretty),
-                                            &protocols,
-                                            event_type_filter.as_ref(),
-                                            callback.clone(),
-                                        )
-                                        .await
-                                        {
-                                            error!("Error processing transaction event: {e:?}");
+                                        match factory::create_transaction_pretty(transaction_update, created_at) {
+                                            Ok(transaction_pretty) => {
+                                                log::debug!(
+                                                    "Received transaction: {} at slot {}",
+                                                    transaction_pretty.signature,
+                                                    transaction_pretty.slot
+                                                );
+                                                if let Err(e) = process_grpc_transaction(
+                                                    EventPretty::Transaction(Box::new(transaction_pretty)),
+                                                    &protocols,
+                                                    event_type_filter.as_ref(),
+                                                    callback.clone(),
+                                                )
+                                                .await
+                                                {
+                                                    error!("Error processing transaction event: {e:?}");
+                                                }
+                                            }
+                                            Err(e) => error!("Failed to parse transaction update: {e:?}"),
                                         }
                                     }
                                     Some(UpdateOneof::Ping(_)) => {
@@ -242,11 +261,11 @@ impl YellowstoneGrpc {
                                                 .await;
                                         }
                                         let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
-                                        log::debug!("service is ping: {}", ts);
+                                        log::debug!("service is ping: {ts}");
                                     }
                                     Some(UpdateOneof::Pong(_)) => {
                                         let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
-                                        log::debug!("service is pong: {}", ts);
+                                        log::debug!("service is pong: {ts}");
                                     }
                                     _ => {
                                         log::debug!("Received other message type");
@@ -262,7 +281,7 @@ impl YellowstoneGrpc {
                     }
                     Some(update) = control_rx.next() => {
                         if let Err(e) = subscribe_tx.lock().await.send(update).await {
-                            error!("Failed to send subscription update: {}", e);
+                            error!("Failed to send subscription update: {e}");
                             break;
                         }
                     }
@@ -272,8 +291,7 @@ impl YellowstoneGrpc {
 
         // Save subscription handle
         let subscription_handle = SubscriptionHandle::new(stream_handle, None, metrics_handle);
-        let mut handle_guard = self.subscription_handle.lock().await;
-        *handle_guard = Some(subscription_handle);
+        *self.subscription_handle.lock().await = Some(subscription_handle);
 
         Ok(())
     }
@@ -286,10 +304,13 @@ impl YellowstoneGrpc {
     ///
     /// # Returns
     /// Returns `AnyResult<()>` on success, error on failure
+    ///
+    /// # Errors
+    /// Returns error if no active subscription exists or if sending update fails.
     pub async fn update_subscription(
         &self,
-        transaction_filter: Vec<TransactionFilter>,
-        account_filter: Vec<AccountFilter>,
+        transaction_filter: &[TransactionFilter],
+        account_filter: &[AccountFilter],
     ) -> AnyResult<()> {
         let mut control_sender = {
             let control_guard = self.control_tx.lock().await;
@@ -331,27 +352,10 @@ impl YellowstoneGrpc {
         control_sender
             .send(request.clone())
             .await
-            .map_err(|e| anyhow!("Failed to send update: {}", e))?;
+            .map_err(|e| anyhow!("Failed to send update: {e}"))?;
 
         *self.current_request.write().await = Some(request);
 
         Ok(())
-    }
-}
-
-// Implement Clone trait for cross-module sharing
-impl Clone for YellowstoneGrpc {
-    fn clone(&self) -> Self {
-        Self {
-            endpoint: self.endpoint.clone(),
-            x_token: self.x_token.clone(),
-            config: self.config.clone(),
-            subscription_manager: self.subscription_manager.clone(),
-            subscription_handle: self.subscription_handle.clone(), // Share the same Arc<Mutex<>>
-            active_subscription: self.active_subscription.clone(),
-            control_tx: self.control_tx.clone(),
-            event_type_filter: self.event_type_filter.clone(),
-            current_request: self.current_request.clone(),
-        }
     }
 }

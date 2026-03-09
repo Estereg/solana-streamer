@@ -9,13 +9,14 @@ use crate::streaming::event_parser::{
 };
 use solana_sdk::pubkey::Pubkey;
 
-/// PumpFun Program ID
+/// `PumpFun` Program ID
 pub const PUMPFUN_PROGRAM_ID: Pubkey =
     solana_sdk::pubkey!("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P");
 
-/// Parse PumpFun instruction data
+/// Parse `PumpFun` instruction data
 ///
 /// Routes to specific instruction parsing functions based on the discriminator
+#[must_use]
 pub fn parse_pumpfun_instruction_data(
     discriminator: &[u8],
     data: &[u8],
@@ -35,9 +36,10 @@ pub fn parse_pumpfun_instruction_data(
     }
 }
 
-/// Parse PumpFun inner instruction data
+/// Parse `PumpFun` inner instruction data
 ///
 /// Routes to specific inner instruction parsing functions based on the discriminator
+#[must_use]
 pub fn parse_pumpfun_inner_instruction_data(
     discriminator: &[u8],
     data: &[u8],
@@ -53,9 +55,10 @@ pub fn parse_pumpfun_inner_instruction_data(
     }
 }
 
-/// Parse PumpFun account data
+/// Parse `PumpFun` account data
 ///
 /// Routes to specific account parsing functions based on the discriminator
+#[must_use]
 pub fn parse_pumpfun_account_data(
     discriminator: &[u8],
     account: &crate::streaming::grpc::AccountPretty,
@@ -77,52 +80,46 @@ pub fn parse_pumpfun_account_data(
 }
 
 /// Parse migration event
+#[must_use]
 fn parse_migrate_inner_instruction(data: &[u8], mut metadata: EventMetadata) -> Option<DexEvent> {
     metadata.event_type = EventType::PumpFunMigrate;
-    if let Some(event) = pumpfun_migrate_event_log_decode(data) {
-        Some(DexEvent::PumpFunMigrateEvent(PumpFunMigrateEvent { metadata, ..event }))
-    } else {
-        None
-    }
+    pumpfun_migrate_event_log_decode(data).map(|event| DexEvent::PumpFunMigrateEvent(PumpFunMigrateEvent { metadata, ..event }))
 }
 
 /// Parse token creation log event
+#[must_use]
 fn parse_create_token_inner_instruction(
     data: &[u8],
     mut metadata: EventMetadata,
 ) -> Option<DexEvent> {
     metadata.event_type = EventType::PumpFunCreateToken;
-    if let Some(event) = pumpfun_create_v2_token_event_log_decode(data) {
-        Some(DexEvent::PumpFunCreateV2TokenEvent(PumpFunCreateV2TokenEvent { metadata, ..event }))
-    } else {
-        None
-    }
+    pumpfun_create_v2_token_event_log_decode(data).map(|event| {
+        DexEvent::PumpFunCreateV2TokenEvent(PumpFunCreateV2TokenEvent { metadata, ..event })
+    })
 }
 
-/// Parse trade event (inner instructions don't set event_type as Buy/Sell is unknown here)
+/// Parse trade event (inner instructions don't set `event_type` as Buy/Sell is unknown here)
+#[must_use]
 fn parse_trade_inner_instruction(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
     // Note: trade event in inner instructions does not set event_type
     // It will be merged into the main instruction event which already has the correct event_type
-    if let Some(event) = pumpfun_trade_event_log_decode(data) {
-        Some(DexEvent::PumpFunTradeEvent(PumpFunTradeEvent { metadata, ..event }))
-    } else {
-        None
-    }
+    pumpfun_trade_event_log_decode(data).map(|event| DexEvent::PumpFunTradeEvent(PumpFunTradeEvent { metadata, ..event }))
 }
 
 /// Parse token creation instruction event
-/// Accounts: 0: mint, 1: mint_authority, 2: bonding_curve, 3: associated_bonding_curve, 4: global,
-/// 5: mpl_token_metadata, 6: metadata_account, 7: user, 8: system_program, 9: token_program,
-/// 10: associated_token_program, 11: rent, 12: event_authority, 13: program.
+/// 0: `mint`, 1: `mint_authority`, 2: `bonding_curve`, 3: `associated_bonding_curve`, 4: `global`,
+/// 5: `mpl_token_metadata`, 6: `metadata_account`, 7: `user`, 8: `system_program`, 9: `token_program`,
+/// 10: `associated_token_program`, 11: `rent`, 12: `event_authority`, 13: `program`.
 /// Total of 14 fixed accounts; returns None if accounts are insufficient to avoid index out of bounds.
+#[must_use]
 fn parse_create_token_instruction(
     data: &[u8],
     accounts: &[Pubkey],
     mut metadata: EventMetadata,
 ) -> Option<DexEvent> {
+    const CREATE_TOKEN_MIN_ACCOUNTS: usize = 14;
     metadata.event_type = EventType::PumpFunCreateToken;
 
-    const CREATE_TOKEN_MIN_ACCOUNTS: usize = 14;
     if data.len() < 16 || accounts.len() < CREATE_TOKEN_MIN_ACCOUNTS {
         return None;
     }
@@ -188,20 +185,21 @@ fn parse_create_token_instruction(
 }
 
 /// Parse V2 token creation instruction event (SPL-2022 Token, Mayhem Mode)
-/// Accounts: 0: mint, 1: mint_authority, 2: bonding_curve, 3: associated_bonding_curve, 4: global,
-/// 5: user, 6: system_program, 7: token_program, 8: associated_token_program, 9: mayhem_program_id,
-/// 10: global_params, 11: sol_vault, 12: mayhem_state, 13: mayhem_token_vault, 14: event_authority, 15: program.
+/// Accounts: 0: `mint`, 1: `mint_authority`, 2: `bonding_curve`, 3: `associated_bonding_curve`, 4: `global`,
+/// 5: `user`, 6: `system_program`, 7: `token_program`, 8: `associated_token_program`, 9: `mayhem_program_id`,
+/// 10: `global_params`, 11: `sol_vault`, 12: `mayhem_state`, 13: `mayhem_token_vault`, 14: `event_authority`, 15: `program`.
 /// Total of 16 fixed accounts; returns None if accounts are insufficient to avoid index out of bounds.
-/// Note: ShredStream path only provides static_account_keys. If the transaction uses Address Lookup Tables,
-/// loaded_addresses cannot be resolved, causing some accounts to be filled with defaults (e.g., token_program/global may be wrong).
+/// Note: `ShredStream` path only provides `static_account_keys`. If the transaction uses Address Lookup Tables,
+/// `loaded_addresses` cannot be resolved, causing some accounts to be filled with defaults (e.g., `token_program/global` may be wrong).
+#[must_use]
 fn parse_create_v2_token_instruction(
     data: &[u8],
     accounts: &[Pubkey],
     mut metadata: EventMetadata,
 ) -> Option<DexEvent> {
+    const CREATE_V2_MIN_ACCOUNTS: usize = 16;
     metadata.event_type = EventType::PumpFunCreateV2Token;
 
-    const CREATE_V2_MIN_ACCOUNTS: usize = 16;
     if data.len() < 16 || accounts.len() < CREATE_V2_MIN_ACCOUNTS {
         return None;
     }
@@ -270,10 +268,11 @@ fn parse_create_v2_token_instruction(
 
 /// Parse buy instruction event.
 /// Buy has 16 fixed accounts + optional 17th (index 16, "Account" on block explorers):
-/// 0: global, 1: fee_recipient, 2: mint, 3: bonding_curve, 4: associated_bonding_curve,
-/// 5: associated_user, 6: user, 7: system_program, 8: token_program, 9: creator_vault,
-/// 10: event_authority, 11: program, 12: global_volume_accumulator, 13: user_volume_accumulator,
-/// 14: fee_config, 15: fee_program, 16 (optional): account.
+/// 0: global, 1: `fee_recipient`, 2: mint, 3: `bonding_curve`, 4: `associated_bonding_curve`,
+/// 5: `associated_user`, 6: user, 7: `system_program`, 8: `token_program`, 9: `creator_vault`,
+/// 10: `event_authority`, 11: program, 12: `global_volume_accumulator`, 13: `user_volume_accumulator`,
+/// 14: `fee_config`, 15: `fee_program`, 16 (optional): account.
+#[must_use]
 fn parse_buy_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -312,9 +311,10 @@ fn parse_buy_instruction(
     }))
 }
 
-/// Parse buy_exact_sol_in instruction event.
+/// Parse `buy_exact_sol_in` instruction event.
 /// Same account layout as buy: 16 fixed + optional 17th (index 16).
-/// Args: spendable_sol_in (SOL), min_tokens_out (token).
+/// Args: `spendable_sol_in` (SOL), `min_tokens_out` (token).
+#[must_use]
 fn parse_buy_exact_sol_in_instruction(
     data: &[u8], accounts: &[Pubkey],
     mut metadata: EventMetadata,
@@ -356,6 +356,7 @@ fn parse_buy_exact_sol_in_instruction(
 
 /// Parse sell instruction event.
 /// Sell has 14 fixed accounts; some versions pass 17 accounts, index 16 = "Account" on block explorers.
+#[must_use]
 fn parse_sell_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -395,11 +396,12 @@ fn parse_sell_instruction(
 }
 
 /// Parse migration instruction event
-/// Total of 24 fixed accounts: 0: global, 1: withdraw_authority, 2: mint, 3: bonding_curve, 4: associated_bonding_curve,
-/// 5: user, 6: system_program, 7: token_program, 8: pump_amm, 9: pool, 10: pool_authority,
-/// 11: pool_authority_mint_account, 12: pool_authority_wsol_account, 13: amm_global_config, 14: wsol_mint,
-/// 15: lp_mint, 16: user_pool_token_account, 17: pool_base_token_account, 18: pool_quote_token_account,
-/// 19: token_2022_program, 20: associated_token_program, 21: pump_amm_event_authority, 22: event_authority, 23: program.
+/// Total of 24 fixed accounts: 0: `global`, 1: `withdraw_authority`, 2: `mint`, 3: `bonding_curve`, 4: `associated_bonding_curve`,
+/// 5: `user`, 6: `system_program`, 7: `token_program`, 8: `pump_amm`, 9: `pool`, 10: `pool_authority`,
+/// 11: `pool_authority_mint_account`, 12: `pool_authority_wsol_account`, 13: `amm_global_config`, 14: `wsol_mint`,
+/// 15: `lp_mint`, 16: `user_pool_token_account`, 17: `pool_base_token_account`, 18: `pool_quote_token_account`,
+/// 19: `token_2022_program`, 20: `associated_token_program`, 21: `pump_amm_event_authority`, 22: `event_authority`, 23: `program`.
+#[must_use]
 fn parse_migrate_instruction(
     _data: &[u8],
     accounts: &[Pubkey],

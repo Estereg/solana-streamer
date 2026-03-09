@@ -28,6 +28,7 @@ pub struct GlobalConfig {
 
 pub const GLOBAL_CONFIG_SIZE: usize = 32 + 8 + 8 + 1 + 32 * 8 + 8 + 32 + 32 + 32 + 1 + 32 * 7;
 
+#[must_use]
 pub fn global_config_decode(data: &[u8]) -> Option<GlobalConfig> {
     if data.len() < GLOBAL_CONFIG_SIZE {
         return None;
@@ -35,6 +36,7 @@ pub fn global_config_decode(data: &[u8]) -> Option<GlobalConfig> {
     borsh::from_slice::<GlobalConfig>(&data[..GLOBAL_CONFIG_SIZE]).ok()
 }
 
+#[must_use]
 pub fn global_config_parser(
     account: &AccountPretty,
     mut metadata: EventMetadata,
@@ -44,8 +46,8 @@ pub fn global_config_parser(
     if account.data.len() < GLOBAL_CONFIG_SIZE + 8 {
         return None;
     }
-    if let Some(config) = global_config_decode(&account.data[8..GLOBAL_CONFIG_SIZE + 8]) {
-        Some(DexEvent::PumpSwapGlobalConfigAccountEvent(PumpSwapGlobalConfigAccountEvent {
+    global_config_decode(&account.data[8..GLOBAL_CONFIG_SIZE + 8]).map(|config| {
+        DexEvent::PumpSwapGlobalConfigAccountEvent(PumpSwapGlobalConfigAccountEvent {
             metadata,
             pubkey: account.pubkey,
             executable: account.executable,
@@ -53,10 +55,8 @@ pub fn global_config_parser(
             owner: account.owner,
             rent_epoch: account.rent_epoch,
             global_config: config,
-        }))
-    } else {
-        None
-    }
+        })
+    })
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
@@ -76,6 +76,7 @@ pub struct Pool {
 
 pub const POOL_SIZE: usize = 1 + 2 + 32 * 6 + 8 + 32 + 1;
 
+#[must_use]
 pub fn pool_decode(data: &[u8]) -> Option<Pool> {
     if data.len() < POOL_SIZE {
         return None;
@@ -83,23 +84,22 @@ pub fn pool_decode(data: &[u8]) -> Option<Pool> {
     borsh::from_slice::<Pool>(&data[..POOL_SIZE]).ok()
 }
 
+#[must_use]
 pub fn pool_parser(account: &AccountPretty, mut metadata: EventMetadata) -> Option<DexEvent> {
     metadata.event_type = EventType::AccountPumpSwapPool;
 
     if account.data.len() < POOL_SIZE + 8 {
         return None;
     }
-    if let Some(pool) = pool_decode(&account.data[8..POOL_SIZE + 8]) {
-        Some(DexEvent::PumpSwapPoolAccountEvent(PumpSwapPoolAccountEvent {
+    pool_decode(&account.data[8..POOL_SIZE + 8]).map(|pool| {
+        DexEvent::PumpSwapPoolAccountEvent(PumpSwapPoolAccountEvent {
             metadata,
             pubkey: account.pubkey,
             executable: account.executable,
             lamports: account.lamports,
             owner: account.owner,
             rent_epoch: account.rent_epoch,
-            pool: pool,
-        }))
-    } else {
-        None
-    }
+            pool,
+        })
+    })
 }

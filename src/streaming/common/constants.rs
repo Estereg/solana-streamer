@@ -1,8 +1,9 @@
 // Streaming-related constant definitions
+use std::time::Duration;
 
 // Default configuration constants
-pub const DEFAULT_CONNECT_TIMEOUT: u64 = 10;
-pub const DEFAULT_REQUEST_TIMEOUT: u64 = 60;
+pub const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+pub const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 pub const DEFAULT_MAX_DECODING_MESSAGE_SIZE: usize = 1024 * 1024 * 10;
 
 // Performance monitoring constants

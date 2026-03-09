@@ -34,6 +34,7 @@ pub struct CacheKey {
 
 impl CacheKey {
     /// Create a new cache key
+    #[must_use]
     pub fn new(mut protocols: Vec<Protocol>, filter: Option<&EventTypeFilter>) -> Self {
         // Sort protocols to ensure identical combinations produce the same key
         protocols.sort();
@@ -48,14 +49,14 @@ impl CacheKey {
     }
 }
 
-/// Global program ID cache (protected by RwLock)
+/// Global program ID cache (protected by `RwLock`)
 static GLOBAL_PROGRAM_IDS_CACHE: LazyLock<
     std::sync::RwLock<HashMap<CacheKey, Arc<Vec<Pubkey>>>>,
 > = LazyLock::new(|| std::sync::RwLock::new(HashMap::new()));
 
 /// Get program IDs for the specified protocols
 ///
-/// Uses EventDispatcher to get program_ids and caches the result
+/// Uses `EventDispatcher` to get `program_ids` and caches the result
 pub fn get_global_program_ids(
     protocols: &[Protocol],
     filter: Option<&EventTypeFilter>,
@@ -64,7 +65,7 @@ pub fn get_global_program_ids(
 
     // Fast path: try reading from cache
     {
-        let cache = GLOBAL_PROGRAM_IDS_CACHE.read().unwrap_or_else(|error| error.into_inner());
+        let cache = GLOBAL_PROGRAM_IDS_CACHE.read().unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(program_ids) = cache.get(&cache_key) {
             return program_ids.clone();
         }
@@ -74,7 +75,7 @@ pub fn get_global_program_ids(
     let program_ids = Arc::new(EventDispatcher::get_program_ids(protocols));
 
     // Cache the result (write lock)
-    GLOBAL_PROGRAM_IDS_CACHE.write().unwrap_or_else(|error| error.into_inner()).insert(cache_key, program_ids.clone());
+    GLOBAL_PROGRAM_IDS_CACHE.write().unwrap_or_else(std::sync::PoisonError::into_inner).insert(cache_key, program_ids.clone());
 
     program_ids
 }
@@ -96,6 +97,7 @@ impl AccountPubkeyCache {
     /// Create a new account pubkey cache
     ///
     /// Pre-allocates 32 slots, covering most transaction scenarios
+    #[must_use]
     pub fn new() -> Self {
         Self {
             cache: Vec::with_capacity(32),
@@ -128,7 +130,7 @@ impl AccountPubkeyCache {
         }
 
         // Fast fill account pubkeys (with bounds checking)
-        for &index in instruction_accounts.iter() {
+        for &index in instruction_accounts {
             if (index as usize) < all_accounts.len() {
                 self.cache.push(all_accounts[index as usize]);
             } else {
@@ -163,6 +165,7 @@ thread_local! {
 /// # Thread safety
 /// Uses thread-local storage, each thread has its own independent cache
 #[inline]
+#[must_use]
 pub fn build_account_pubkeys_with_cache(
     instruction_accounts: &[u8],
     all_accounts: &[Pubkey],

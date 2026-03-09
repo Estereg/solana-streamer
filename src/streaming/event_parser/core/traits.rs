@@ -6,28 +6,55 @@ use crate::streaming::event_parser::core::common_event_parser::{
     SetComputeUnitLimitEvent, SetComputeUnitPriceEvent,
 };
 use crate::streaming::event_parser::protocols::block::block_meta_event::BlockMetaEvent;
-use crate::streaming::event_parser::protocols::bonk::events::*;
-use crate::streaming::event_parser::protocols::meteora_damm_v2::events::*;
-use crate::streaming::event_parser::protocols::pumpfun::events::*;
-use crate::streaming::event_parser::protocols::pumpswap::events::*;
-use crate::streaming::event_parser::protocols::raydium_amm_v4::events::*;
-use crate::streaming::event_parser::protocols::raydium_clmm::events::*;
-use crate::streaming::event_parser::protocols::raydium_cpmm::events::*;
+use crate::streaming::event_parser::protocols::bonk::events::{
+    BonkGlobalConfigAccountEvent, BonkMigrateToAmmEvent, BonkMigrateToCpswapEvent,
+    BonkPlatformConfigAccountEvent, BonkPoolCreateEvent, BonkPoolStateAccountEvent,
+    BonkTradeEvent,
+};
+use crate::streaming::event_parser::protocols::meteora_damm_v2::events::{
+    MeteoraDammV2InitializeCustomizablePoolEvent, MeteoraDammV2InitializePoolEvent,
+    MeteoraDammV2InitializePoolWithDynamicConfigEvent, MeteoraDammV2Swap2Event,
+    MeteoraDammV2SwapEvent,
+};
+use crate::streaming::event_parser::protocols::pumpfun::events::{
+    PumpFunBondingCurveAccountEvent, PumpFunCreateTokenEvent, PumpFunCreateV2TokenEvent,
+    PumpFunGlobalAccountEvent, PumpFunMigrateEvent, PumpFunTradeEvent,
+};
+use crate::streaming::event_parser::protocols::pumpswap::events::{
+    PumpSwapBuyEvent, PumpSwapCreatePoolEvent, PumpSwapDepositEvent,
+    PumpSwapGlobalConfigAccountEvent, PumpSwapPoolAccountEvent, PumpSwapSellEvent,
+    PumpSwapWithdrawEvent,
+};
+use crate::streaming::event_parser::protocols::raydium_amm_v4::events::{
+    RaydiumAmmV4AmmInfoAccountEvent, RaydiumAmmV4DepositEvent, RaydiumAmmV4Initialize2Event,
+    RaydiumAmmV4SwapEvent, RaydiumAmmV4WithdrawEvent, RaydiumAmmV4WithdrawPnlEvent,
+};
+use crate::streaming::event_parser::protocols::raydium_clmm::events::{
+    RaydiumClmmAmmConfigAccountEvent, RaydiumClmmClosePositionEvent,
+    RaydiumClmmCreatePoolEvent, RaydiumClmmDecreaseLiquidityV2Event,
+    RaydiumClmmIncreaseLiquidityV2Event, RaydiumClmmOpenPositionV2Event,
+    RaydiumClmmOpenPositionWithToken22NftEvent, RaydiumClmmPoolStateAccountEvent,
+    RaydiumClmmSwapEvent, RaydiumClmmSwapV2Event, RaydiumClmmTickArrayStateAccountEvent,
+};
+use crate::streaming::event_parser::protocols::raydium_cpmm::events::{
+    RaydiumCpmmAmmConfigAccountEvent, RaydiumCpmmDepositEvent, RaydiumCpmmInitializeEvent,
+    RaydiumCpmmPoolStateAccountEvent, RaydiumCpmmSwapEvent, RaydiumCpmmWithdrawEvent,
+};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 /// Unified Event Enum - Replaces the trait-based approach with a type-safe enum
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DexEvent {
     // Bonk events
     BonkTradeEvent(BonkTradeEvent),
     BonkPoolCreateEvent(BonkPoolCreateEvent),
-    BonkMigrateToAmmEvent(BonkMigrateToAmmEvent),
+    BonkMigrateToAmmEvent(Box<BonkMigrateToAmmEvent>),
     BonkMigrateToCpswapEvent(BonkMigrateToCpswapEvent),
     BonkPoolStateAccountEvent(BonkPoolStateAccountEvent),
     BonkGlobalConfigAccountEvent(BonkGlobalConfigAccountEvent),
     BonkPlatformConfigAccountEvent(BonkPlatformConfigAccountEvent),
-
+ 
     // PumpFun events
     PumpFunCreateTokenEvent(PumpFunCreateTokenEvent),
     PumpFunCreateV2TokenEvent(PumpFunCreateV2TokenEvent),
@@ -35,7 +62,7 @@ pub enum DexEvent {
     PumpFunMigrateEvent(PumpFunMigrateEvent),
     PumpFunBondingCurveAccountEvent(PumpFunBondingCurveAccountEvent),
     PumpFunGlobalAccountEvent(PumpFunGlobalAccountEvent),
-
+ 
     // PumpSwap events
     PumpSwapBuyEvent(PumpSwapBuyEvent),
     PumpSwapSellEvent(PumpSwapSellEvent),
@@ -44,7 +71,7 @@ pub enum DexEvent {
     PumpSwapWithdrawEvent(PumpSwapWithdrawEvent),
     PumpSwapGlobalConfigAccountEvent(PumpSwapGlobalConfigAccountEvent),
     PumpSwapPoolAccountEvent(PumpSwapPoolAccountEvent),
-
+ 
     // Raydium AMM V4 events
     RaydiumAmmV4SwapEvent(RaydiumAmmV4SwapEvent),
     RaydiumAmmV4DepositEvent(RaydiumAmmV4DepositEvent),
@@ -52,7 +79,7 @@ pub enum DexEvent {
     RaydiumAmmV4WithdrawPnlEvent(RaydiumAmmV4WithdrawPnlEvent),
     RaydiumAmmV4Initialize2Event(RaydiumAmmV4Initialize2Event),
     RaydiumAmmV4AmmInfoAccountEvent(RaydiumAmmV4AmmInfoAccountEvent),
-
+ 
     // Raydium CLMM events
     RaydiumClmmSwapEvent(RaydiumClmmSwapEvent),
     RaydiumClmmSwapV2Event(RaydiumClmmSwapV2Event),
@@ -63,8 +90,8 @@ pub enum DexEvent {
     RaydiumClmmOpenPositionWithToken22NftEvent(RaydiumClmmOpenPositionWithToken22NftEvent),
     RaydiumClmmOpenPositionV2Event(RaydiumClmmOpenPositionV2Event),
     RaydiumClmmAmmConfigAccountEvent(RaydiumClmmAmmConfigAccountEvent),
-    RaydiumClmmPoolStateAccountEvent(RaydiumClmmPoolStateAccountEvent),
-    RaydiumClmmTickArrayStateAccountEvent(RaydiumClmmTickArrayStateAccountEvent),
+    RaydiumClmmPoolStateAccountEvent(Box<RaydiumClmmPoolStateAccountEvent>),
+    RaydiumClmmTickArrayStateAccountEvent(Box<RaydiumClmmTickArrayStateAccountEvent>),
 
     // Raydium CPMM events
     RaydiumCpmmSwapEvent(RaydiumCpmmSwapEvent),
@@ -90,7 +117,7 @@ pub enum DexEvent {
     SetComputeUnitPriceEvent(SetComputeUnitPriceEvent),
 }
 
-/// Macro to generate metadata accessors for all DexEvent variants
+/// Macro to generate metadata accessors for all `DexEvent` variants
 macro_rules! impl_dex_event_metadata {
     ($($variant:ident),* $(,)?) => {
         impl DexEvent {

@@ -11,7 +11,7 @@ use solana_sdk::pubkey::Pubkey;
 pub const COMPUTE_BUDGET_PROGRAM_ID: Pubkey =
     solana_sdk::pubkey!("ComputeBudget111111111111111111111111111111");
 
-/// SetComputeUnitLimit event
+/// `SetComputeUnitLimit` event
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct SetComputeUnitLimitEvent {
     #[borsh(skip)]
@@ -20,7 +20,7 @@ pub struct SetComputeUnitLimitEvent {
     pub units: u32,
 }
 
-/// SetComputeUnitPrice event
+/// `SetComputeUnitPrice` event
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct SetComputeUnitPriceEvent {
     #[borsh(skip)]
@@ -32,6 +32,7 @@ pub struct SetComputeUnitPriceEvent {
 pub struct CommonEventParser {}
 
 impl CommonEventParser {
+    #[must_use]
     pub fn generate_block_meta_event(
         slot: u64,
         block_hash: String,
@@ -44,6 +45,7 @@ impl CommonEventParser {
     }
 
     /// Parse Compute Budget instruction
+    #[must_use]
     pub fn parse_compute_budget_instruction(
         instruction_data: &[u8],
         mut metadata: EventMetadata,

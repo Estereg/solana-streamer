@@ -37,6 +37,7 @@ impl EventDispatcher {
     /// # Returns
     /// `Some(DexEvent)` on success, `None` otherwise
     #[inline]
+    #[must_use]
     pub fn dispatch_instruction(
         protocol: Protocol,
         instruction_discriminator: &[u8],
@@ -103,6 +104,7 @@ impl EventDispatcher {
     /// # Returns
     /// `Some(DexEvent)` on success, `None` otherwise
     #[inline]
+    #[must_use]
     pub fn dispatch_inner_instruction(
         protocol: Protocol,
         inner_instruction_discriminator: &[u8],
@@ -150,8 +152,9 @@ impl EventDispatcher {
         }
     }
 
-    /// Match protocol by program_id using O(1) direct comparison
+    /// Match protocol by `program_id` using O(1) direct comparison
     #[inline]
+    #[must_use]
     pub fn match_protocol_by_program_id(program_id: &Pubkey) -> Option<Protocol> {
         if program_id == &pumpfun::PUMPFUN_PROGRAM_ID {
             Some(Protocol::PumpFun)
@@ -172,8 +175,9 @@ impl EventDispatcher {
         }
     }
 
-    /// Check if program_id is the Compute Budget Program
+    /// Check if `program_id` is the Compute Budget Program
     #[inline]
+    #[must_use]
     pub fn is_compute_budget_program(program_id: &Pubkey) -> bool {
         program_id == &COMPUTE_BUDGET_PROGRAM_ID
     }
@@ -187,6 +191,7 @@ impl EventDispatcher {
     /// # Returns
     /// `Some(DexEvent)` on success, `None` otherwise
     #[inline]
+    #[must_use]
     pub fn dispatch_compute_budget_instruction(
         instruction_data: &[u8],
         metadata: EventMetadata,
@@ -194,9 +199,10 @@ impl EventDispatcher {
         CommonEventParser::parse_compute_budget_instruction(instruction_data, metadata)
     }
 
-    /// Get the program_id for a given protocol
+    /// Get the `program_id` for a given protocol
     #[inline]
-    pub fn get_program_id(protocol: Protocol) -> Pubkey {
+    #[must_use]
+    pub const fn get_program_id(protocol: Protocol) -> Pubkey {
         match protocol {
             Protocol::PumpFun => pumpfun::PUMPFUN_PROGRAM_ID,
             Protocol::PumpSwap => pumpswap::PUMPSWAP_PROGRAM_ID,
@@ -208,7 +214,8 @@ impl EventDispatcher {
         }
     }
 
-    /// Get program_ids for multiple protocols
+    /// Get `program_ids` for multiple protocols
+    #[must_use]
     pub fn get_program_ids(protocols: &[Protocol]) -> Vec<Pubkey> {
         protocols.iter().map(|protocol| Self::get_program_id(*protocol)).collect()
     }
@@ -225,6 +232,7 @@ impl EventDispatcher {
     ///
     /// # Returns
     /// `Some(DexEvent)` on success, `None` otherwise
+    #[must_use]
     pub fn dispatch_account(
         protocol: Protocol,
         discriminator: &[u8],

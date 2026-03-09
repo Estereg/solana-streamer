@@ -4,11 +4,12 @@ use crate::streaming::event_parser::{
         discriminators, meteora_damm_v2_initialize_pool_event_decode,
         meteora_damm_v2_swap_event_decode, MeteoraDammV2InitializeCustomizablePoolEvent,
         MeteoraDammV2InitializePoolEvent, MeteoraDammV2InitializePoolWithDynamicConfigEvent,
-        MeteoraDammV2Swap2Event, MeteoraDammV2SwapEvent,
+        MeteoraDammV2Swap2Event, MeteoraDammV2SwapEvent, PoolFeeParameters,
     },
     DexEvent,
 };
 use solana_sdk::pubkey::Pubkey;
+use borsh::BorshDeserialize;
 
 /// Meteora DAMM v2 Program ID
 pub const METEORA_DAMM_V2_PROGRAM_ID: Pubkey =
@@ -17,6 +18,7 @@ pub const METEORA_DAMM_V2_PROGRAM_ID: Pubkey =
 /// Parse Meteora DAMM v2 instruction data
 ///
 /// Routes to specific instruction parsing functions based on the discriminator
+#[must_use]
 pub fn parse_meteora_damm_v2_instruction_data(
     discriminator: &[u8],
     data: &[u8],
@@ -42,6 +44,7 @@ pub fn parse_meteora_damm_v2_instruction_data(
 /// Parse Meteora DAMM v2 inner instruction data (CPI events)
 ///
 /// Routes to specific inner instruction parsing functions based on the discriminator
+#[must_use]
 pub fn parse_meteora_damm_v2_inner_instruction_data(
     discriminator: &[u8],
     data: &[u8],
@@ -143,7 +146,7 @@ fn parse_swap2_instruction(
     }))
 }
 
-/// Parse initialize_pool instruction
+/// Parse `initialize_pool` instruction
 fn parse_initialize_pool_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -174,11 +177,9 @@ fn parse_initialize_pool_instruction(
     // Read activation_point (Option<u64>)
     let option_tag = data[offset];
     offset += 1;
-    let _activation_point = if option_tag == 1 && data.len() >= offset + 8 {
-        Some(u64::from_le_bytes(data[offset..offset + 8].try_into().ok()?))
-    } else {
-        None
-    };
+    if option_tag == 1 && data.len() >= offset + 8 {
+        let _ = u64::from_le_bytes(data[offset..offset + 8].try_into().ok()?);
+    }
 
     Some(DexEvent::MeteoraDammV2InitializePoolEvent(MeteoraDammV2InitializePoolEvent {
         metadata,
@@ -207,7 +208,7 @@ fn parse_initialize_pool_instruction(
     }))
 }
 
-/// Parse initialize_customizable_pool instruction
+/// Parse `initialize_customizable_pool` instruction
 fn parse_initialize_customizable_pool_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -228,9 +229,6 @@ fn parse_initialize_customizable_pool_instruction(
     let mut offset = 0;
 
     // Parse PoolFeeParameters
-    use crate::streaming::event_parser::protocols::meteora_damm_v2::PoolFeeParameters;
-    use borsh::BorshDeserialize;
-
     // PoolFeeParameters size: 8 + 2 + 8 + 8 + 1 + 3 + 1 + (optional DynamicFee)
     // Read first 31 bytes (excluding dynamic_fee option tag)
     let pool_fees = PoolFeeParameters::deserialize(&mut &data[offset..]).ok()?;
@@ -251,8 +249,7 @@ fn parse_initialize_customizable_pool_instruction(
     let sqrt_max_price = u128::from_le_bytes(data[offset..offset + 16].try_into().ok()?);
     offset += 16;
 
-    // Read has_alpha_vault (bool)
-    let _has_alpha_vault = data[offset];
+    // Skip has_alpha_vault (bool)
     offset += 1;
 
     // Read liquidity (u128)
@@ -273,10 +270,10 @@ fn parse_initialize_customizable_pool_instruction(
 
     // Read activation_point (Option<u64>)
     let option_tag = data[offset];
-    let _activation_point = if option_tag == 1 && data.len() >= offset + 9 {
-        Some(u64::from_le_bytes(data[offset + 1..offset + 9].try_into().ok()?))
+    let activation_point = if option_tag == 1 && data.len() >= offset + 9 {
+        u64::from_le_bytes(data[offset + 1..offset + 9].try_into().ok()?)
     } else {
-        None
+        0
     };
 
     Some(DexEvent::MeteoraDammV2InitializeCustomizablePoolEvent(
@@ -309,12 +306,13 @@ fn parse_initialize_customizable_pool_instruction(
             collect_fee_mode,
             liquidity,
             sqrt_price,
+            activation_point,
             ..Default::default()
         },
     ))
 }
 
-/// Parse initialize_pool_with_dynamic_config instruction
+/// Parse `initialize_pool_with_dynamic_config` instruction
 fn parse_initialize_pool_with_dynamic_config_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -331,10 +329,6 @@ fn parse_initialize_pool_with_dynamic_config_instruction(
     }
 
     let mut offset = 0;
-
-    // Parse PoolFeeParameters
-    use crate::streaming::event_parser::protocols::meteora_damm_v2::PoolFeeParameters;
-    use borsh::BorshDeserialize;
 
     let pool_fees = PoolFeeParameters::deserialize(&mut &data[offset..]).ok()?;
 
@@ -354,8 +348,7 @@ fn parse_initialize_pool_with_dynamic_config_instruction(
     let sqrt_max_price = u128::from_le_bytes(data[offset..offset + 16].try_into().ok()?);
     offset += 16;
 
-    // Read has_alpha_vault (bool)
-    let _has_alpha_vault = data[offset];
+    // Skip has_alpha_vault (bool)
     offset += 1;
 
     // Read liquidity (u128)
@@ -376,10 +369,10 @@ fn parse_initialize_pool_with_dynamic_config_instruction(
 
     // Read activation_point (Option<u64>)
     let option_tag = data[offset];
-    let _activation_point = if option_tag == 1 && data.len() >= offset + 9 {
-        Some(u64::from_le_bytes(data[offset + 1..offset + 9].try_into().ok()?))
+    let activation_point = if option_tag == 1 && data.len() >= offset + 9 {
+        u64::from_le_bytes(data[offset + 1..offset + 9].try_into().ok()?)
     } else {
-        None
+        0
     };
 
     Some(DexEvent::MeteoraDammV2InitializePoolWithDynamicConfigEvent(
@@ -413,6 +406,7 @@ fn parse_initialize_pool_with_dynamic_config_instruction(
             collect_fee_mode,
             liquidity,
             sqrt_price,
+            activation_point,
             ..Default::default()
         },
     ))
@@ -420,11 +414,7 @@ fn parse_initialize_pool_with_dynamic_config_instruction(
 
 /// Parse swap inner instruction (CPI event)
 fn parse_swap_inner_instruction(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
-    if let Some(event) = meteora_damm_v2_swap_event_decode(data) {
-        Some(DexEvent::MeteoraDammV2SwapEvent(MeteoraDammV2SwapEvent { metadata, ..event }))
-    } else {
-        None
-    }
+    meteora_damm_v2_swap_event_decode(data).map(|event| DexEvent::MeteoraDammV2SwapEvent(MeteoraDammV2SwapEvent { metadata, ..event }))
 }
 
 /// Parse initialize pool inner instruction (CPI event)
@@ -433,12 +423,10 @@ fn parse_initialize_pool_inner_instruction(
     mut metadata: EventMetadata,
 ) -> Option<DexEvent> {
     metadata.event_type = EventType::MeteoraDammV2InitializePool;
-    if let Some(event) = meteora_damm_v2_initialize_pool_event_decode(data) {
-        Some(DexEvent::MeteoraDammV2InitializePoolEvent(MeteoraDammV2InitializePoolEvent {
+    meteora_damm_v2_initialize_pool_event_decode(data).map(|event| {
+        DexEvent::MeteoraDammV2InitializePoolEvent(MeteoraDammV2InitializePoolEvent {
             metadata,
             ..event
-        }))
-    } else {
-        None
-    }
+        })
+    })
 }

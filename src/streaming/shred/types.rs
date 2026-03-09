@@ -12,7 +12,8 @@ pub struct TransactionWithSlot {
 
 impl TransactionWithSlot {
     /// Create a new transaction with slot info
-    pub fn new(
+    #[must_use]
+    pub const fn new(
         transaction: VersionedTransaction,
         slot: u64,
         recv_us: i64,

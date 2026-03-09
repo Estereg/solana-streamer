@@ -26,9 +26,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn test_grpc() -> Result<(), Box<dyn std::error::Error>> {
     println!("Subscribing to Yellowstone gRPC events...");
     // Create low-latency configuration
-    let mut config: ClientConfig = ClientConfig::default();
     // Enable performance monitoring, has performance overhead, disabled by default
-    config.enable_metrics = true;
+    let config = ClientConfig {
+        enable_metrics: true,
+        ..Default::default()
+    };
     let grpc = YellowstoneGrpc::new_with_config(
         "https://solana-yellowstone-grpc.publicnode.com:443".to_string(),
         None,
@@ -38,7 +40,7 @@ async fn test_grpc() -> Result<(), Box<dyn std::error::Error>> {
     let callback = create_event_callback();
     // Will try to parse corresponding protocol events from transactions
     let protocols = vec![];
-    println!("Protocols to monitor: {:?}", protocols);
+    println!("Protocols to monitor: {protocols:?}");
     // Filter accounts
     let account_include = vec![];
     let account_exclude = vec![];
@@ -79,10 +81,10 @@ async fn test_grpc() -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting subscription...");
 
     grpc.subscribe_events_immediate(
-        protocols.clone(),
-        vec![transaction_filter.clone()],
-        vec![all_pump_ata.clone(), all_usdc_ata.clone()],
-        event_type_filter.clone(),
+        protocols,
+        &[transaction_filter],
+        &[all_pump_ata, all_usdc_ata],
+        event_type_filter,
         None,
         callback,
     )
@@ -102,10 +104,11 @@ async fn test_grpc() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn create_event_callback() -> impl Fn(DexEvent) {
-    |event: DexEvent| match event {
-        DexEvent::TokenAccountEvent(e) => {
-            println!("TokenAccount: {:?} amount: {:?}", e.pubkey, e.amount);
+    |event: DexEvent| {
+        if let DexEvent::TokenAccountEvent(e) = event {
+            let pubkey = e.pubkey;
+            let amount = e.amount;
+            println!("TokenAccount: {pubkey:?} amount: {amount:?}");
         }
-        _ => {}
     }
 }

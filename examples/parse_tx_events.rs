@@ -15,7 +15,7 @@ async fn main() -> Result<()> {
     for sig_str in &signatures {
         match solana_sdk::signature::Signature::from_str(sig_str) {
             Ok(_) => valid_signatures.push(*sig_str),
-            Err(e) => println!("Invalid signature format: {}", e),
+            Err(e) => println!("Invalid signature format: {e}"),
         }
     }
     if valid_signatures.is_empty() {
@@ -23,10 +23,10 @@ async fn main() -> Result<()> {
         return Ok(());
     }
     for signature in valid_signatures {
-        println!("Starting transaction parsing: {}", signature);
+        println!("Starting transaction parsing: {signature}");
         get_single_transaction_details(signature).await?;
-        println!("Transaction parsing completed: {}\n", signature);
-        println!("Visit link to compare data: \nhttps://solscan.io/tx/{}\n", signature);
+        println!("Transaction parsing completed: {signature}\n");
+        println!("Visit link to compare data: \nhttps://solscan.io/tx/{signature}\n");
         println!("--------------------------------");
     }
 
@@ -34,16 +34,18 @@ async fn main() -> Result<()> {
 }
 
 /// Get details of a single transaction
+#[allow(clippy::too_many_lines)]
 async fn get_single_transaction_details(signature_str: &str) -> Result<()> {
     use solana_sdk::{signature::Signature, pubkey::Pubkey, message::compiled_instruction::CompiledInstruction};
     use solana_transaction_status::{UiTransactionEncoding, InnerInstruction, InnerInstructions, UiInstruction};
     use prost_types::Timestamp;
+    use solana_streamer_sdk::streaming::event_parser::common::{ParseOptions, TransactionParams};
 
     let signature = Signature::from_str(signature_str)?;
 
     // Create Solana RPC client
     let rpc_url = "https://api.mainnet-beta.solana.com";
-    println!("Connecting to Solana RPC: {}", rpc_url);
+    println!("Connecting to Solana RPC: {rpc_url}");
 
     let client = solana_client::nonblocking::rpc_client::RpcClient::new(rpc_url.to_string());
 
@@ -59,24 +61,24 @@ async fn get_single_transaction_details(signature_str: &str) -> Result<()> {
         .await
     {
         Ok(transaction) => {
-            println!("Transaction signature: {}", signature_str);
+            println!("Transaction signature: {signature_str}");
             println!("Block slot: {}", transaction.slot);
 
             if let Some(block_time) = transaction.block_time {
-                println!("Block time: {}", block_time);
+                println!("Block time: {block_time}");
             }
 
             if let Some(meta) = &transaction.transaction.meta {
                 println!("Transaction fee: {} lamports", meta.fee);
                 println!("Status: {}", if meta.err.is_none() { "Success" } else { "Failed" });
                 if let Some(err) = &meta.err {
-                    println!("Error details: {:?}", err);
+                    println!("Error details: {err:?}");
                 }
                 // Compute units consumed
                 if let solana_transaction_status::option_serializer::OptionSerializer::Some(units) =
                     &meta.compute_units_consumed
                 {
-                    println!("Compute units consumed: {}", units);
+                    println!("Compute units consumed: {units}");
                 }
                 // Display logs (all)
                 if let solana_transaction_status::option_serializer::OptionSerializer::Some(logs) =
@@ -90,12 +92,9 @@ async fn get_single_transaction_details(signature_str: &str) -> Result<()> {
             }
 
             // Parse the transaction and extract necessary data
-            let versioned_tx = match transaction.transaction.transaction.decode() {
-                Some(tx) => tx,
-                None => {
-                    println!("Failed to decode transaction");
-                    return Ok(());
-                }
+            let Some(versioned_tx) = transaction.transaction.transaction.decode() else {
+                println!("Failed to decode transaction");
+                return Ok(());
             };
 
             // Convert inner instructions from meta
@@ -113,7 +112,7 @@ async fn get_single_transaction_details(signature_str: &str) -> Result<()> {
                                 if let Ok(data) = solana_sdk::bs58::decode(&ui_compiled.data).into_vec() {
                                     let compiled_instruction = CompiledInstruction {
                                         program_id_index: ui_compiled.program_id_index,
-                                        accounts: ui_compiled.accounts.to_vec(),
+                                        accounts: ui_compiled.accounts.clone(),
                                         data,
                                     };
 
@@ -170,7 +169,8 @@ async fn get_single_transaction_details(signature_str: &str) -> Result<()> {
             accounts.extend(address_table_lookups);
 
             let slot = transaction.slot;
-            let block_time = transaction.block_time.map(|t| Timestamp { seconds: t as i64, nanos: 0 });
+            let block_time = transaction.block_time.map(|t| Timestamp { seconds: t, nanos: 0 });
+            #[allow(clippy::cast_possible_truncation)]
             let recv_us = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
@@ -189,27 +189,38 @@ async fn get_single_transaction_details(signature_str: &str) -> Result<()> {
 
             // Create callback
             let mut callback = |event: &DexEvent| {
-                println!("{:?}\n", event);
+                println!("{event:?}\n");
+            };
+
+
+
+            // Create options and params
+            let options = ParseOptions {
+                protocols: &protocols,
+                event_type_filter: None,
+            };
+
+            let params = TransactionParams {
+                signature,
+                slot,
+                block_time,
+                recv_us,
+                tx_index,
+                recent_blockhash: None,
             };
 
             // Call parse_instruction_events_from_versioned_transaction
             EventParser::parse_instruction_events_from_versioned_transaction(
-                &protocols,
-                None,
+                options,
                 &versioned_tx,
-                signature,
-                Some(slot),
-                block_time,
-                recv_us,
+                params,
                 &accounts,
                 &inner_instructions_vec,
-                tx_index,
                 &mut callback,
-            )
-            .await?;
+            )?;
         }
         Err(e) => {
-            println!("Failed to get transaction: {}", e);
+            println!("Failed to get transaction: {e}");
         }
     }
 

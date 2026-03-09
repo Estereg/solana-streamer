@@ -1,5 +1,6 @@
 use crate::common::AnyResult;
-use crate::streaming::common::MetricsEventType;
+use crate::streaming::common::MetricCategory;
+use crate::streaming::event_parser::common::{ParseOptions, TransactionParams};
 use crate::streaming::event_parser::common::filter::EventTypeFilter;
 use crate::streaming::event_parser::core::account_event_parser::AccountEventParser;
 use crate::streaming::event_parser::core::common_event_parser::CommonEventParser;
@@ -9,7 +10,34 @@ use crate::streaming::grpc::{EventPretty, MetricsManager};
 use crate::streaming::shred::TransactionWithSlot;
 use std::sync::Arc;
 
+/// Shared metrics callback that wraps a user callback with latency tracking
+#[inline]
+fn metrics_callback(
+    event: &DexEvent,
+    callback: &Arc<dyn Fn(DexEvent) + Send + Sync>,
+) {
+    let metadata = event.metadata();
+    #[allow(clippy::cast_precision_loss)]
+    let processing_time_us = metadata.handle_us as f64;
+    let recv_us = metadata.recv_us;
+    let block_time_ms = metadata.block_time_ms;
+
+    callback(event.clone());
+
+    update_metrics_with_latency(
+        MetricCategory::Transaction,
+        1,
+        processing_time_us,
+        recv_us,
+        block_time_ms,
+    );
+}
+
 /// Process GRPC transaction events
+///
+/// # Errors
+///
+/// Returns error if transaction parsing fails.
 pub async fn process_grpc_transaction(
     event_pretty: EventPretty,
     protocols: &[Protocol],
@@ -22,14 +50,15 @@ pub async fn process_grpc_transaction(
 
             let account_event = AccountEventParser::parse_account_event(
                 protocols,
-                account_pretty,
+                &account_pretty,
                 event_type_filter,
             );
 
             if let Some(event) = account_event {
+                #[allow(clippy::cast_precision_loss)]
                 let processing_time_us = event.metadata().handle_us as f64;
                 callback(event);
-                update_metrics(MetricsEventType::Account, 1, processing_time_us);
+                update_metrics(MetricCategory::Account, 1, processing_time_us);
             }
         }
         EventPretty::Transaction(transaction_pretty) => {
@@ -43,47 +72,41 @@ pub async fn process_grpc_transaction(
             let grpc_tx = transaction_pretty.grpc_tx;
 
             let mut adapter_callback = |event: &DexEvent| {
-                let metadata = event.metadata();
-                let processing_time_us = metadata.handle_us as f64;
-                let recv_us = metadata.recv_us;
-                let block_time_ms = metadata.block_time_ms;
-
-                callback(event.clone());
-
-                update_metrics_with_latency(
-                    MetricsEventType::Transaction,
-                    1,
-                    processing_time_us,
-                    recv_us,
-                    block_time_ms,
-                );
+                metrics_callback(event, &callback);
             };
 
-            EventParser::parse_grpc_transaction(
+            let options = ParseOptions {
                 protocols,
                 event_type_filter,
-                grpc_tx,
+            };
+
+            let params = TransactionParams {
                 signature,
-                Some(slot),
+                slot,
                 block_time,
                 recv_us,
                 tx_index,
+                recent_blockhash: None,
+            };
+
+            EventParser::parse_grpc_transaction(
+                options,
+                grpc_tx,
+                params,
                 &mut adapter_callback,
-            )
-            .await?;
+            )?;
         }
         EventPretty::BlockMeta(block_meta_pretty) => {
             MetricsManager::global().add_block_meta_process_count();
 
             let block_time_ms = block_meta_pretty
                 .block_time
-                .map(|ts| ts.seconds * 1000 + ts.nanos as i64 / 1_000_000)
-                .unwrap_or_else(|| {
-                    std::time::SystemTime::now()
+                .map_or_else(|| {
+                    i64::try_from(std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap_or_default()
-                        .as_millis() as i64
-                });
+                        .as_millis()).unwrap_or(i64::MAX)
+                }, |ts| ts.seconds * 1000 + i64::from(ts.nanos) / 1_000_000);
 
             let block_meta_event = CommonEventParser::generate_block_meta_event(
                 block_meta_pretty.slot,
@@ -92,9 +115,10 @@ pub async fn process_grpc_transaction(
                 block_meta_pretty.recv_us,
             );
 
+            #[allow(clippy::cast_precision_loss)]
             let processing_time_us = block_meta_event.metadata().handle_us as f64;
             callback(block_meta_event);
-            update_metrics(MetricsEventType::BlockMeta, 1, processing_time_us);
+            update_metrics(MetricCategory::BlockMeta, 1, processing_time_us);
         }
     }
 
@@ -102,6 +126,10 @@ pub async fn process_grpc_transaction(
 }
 
 /// Process Shred transaction events
+///
+/// # Errors
+///
+/// Returns error if transaction parsing fails.
 pub async fn process_shred_transaction(
     transaction_with_slot: TransactionWithSlot,
     protocols: &[Protocol],
@@ -122,54 +150,49 @@ pub async fn process_shred_transaction(
     let recv_us = transaction_with_slot.recv_us;
 
     let mut adapter_callback = |event: &DexEvent| {
-        let metadata = event.metadata();
-        let processing_time_us = metadata.handle_us as f64;
-        let recv_us = metadata.recv_us;
-        let block_time_ms = metadata.block_time_ms;
-
-        callback(event.clone());
-
-        update_metrics_with_latency(
-            MetricsEventType::Transaction,
-            1,
-            processing_time_us,
-            recv_us,
-            block_time_ms,
-        );
+        metrics_callback(event, &callback);
     };
 
     // Shred path only gets static_account_keys, no inner_instructions. See docs/SHREDSTREAM_LIMITATIONS.md
     // If tx uses ALT, accounts might be default/wrong; no CPI merge, timestamp/reserves mostly 0.
     let accounts = transaction.message.static_account_keys();
 
-    EventParser::parse_instruction_events_from_versioned_transaction(
+    let options = ParseOptions {
         protocols,
         event_type_filter,
-        &transaction,
+    };
+
+    let params = TransactionParams {
         signature,
-        Some(slot),
-        None, // shred has no block_time
+        slot,
+        block_time: None,
         recv_us,
+        tx_index,
+        recent_blockhash: None,
+    };
+
+    EventParser::parse_instruction_events_from_versioned_transaction(
+        options,
+        &transaction,
+        params,
         accounts,
         &[],
-        tx_index,
         &mut adapter_callback,
-    )
-    .await?;
+    )?;
 
     Ok(())
 }
 
-/// Update metrics for event processing (with optional latency check)
+/// Update metrics for event processing
 #[inline]
-fn update_metrics(ty: MetricsEventType, count: u64, time_us: f64) {
+fn update_metrics(ty: MetricCategory, count: u64, time_us: f64) {
     MetricsManager::global().update_metrics(ty, count, time_us);
 }
 
 /// Update metrics with latency check
 #[inline]
 fn update_metrics_with_latency(
-    ty: MetricsEventType,
+    ty: MetricCategory,
     count: u64,
     time_us: f64,
     recv_us: i64,

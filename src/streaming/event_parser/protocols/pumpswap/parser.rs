@@ -10,13 +10,14 @@ use crate::streaming::event_parser::{
 };
 use solana_sdk::pubkey::Pubkey;
 
-/// PumpSwap Program ID
+/// `PumpSwap` Program ID
 pub const PUMPSWAP_PROGRAM_ID: Pubkey =
     solana_sdk::pubkey!("pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA");
 
-/// Parse PumpSwap instruction data
+/// Parse `PumpSwap` instruction data
 ///
 /// Routes to specific instruction parsing functions based on the discriminator
+#[must_use]
 pub fn parse_pumpswap_instruction_data(
     discriminator: &[u8],
     data: &[u8],
@@ -36,9 +37,10 @@ pub fn parse_pumpswap_instruction_data(
     }
 }
 
-/// Parse PumpSwap inner instruction data
+/// Parse `PumpSwap` inner instruction data
 ///
 /// Routes to specific inner instruction parsing functions based on the discriminator
+#[must_use]
 pub fn parse_pumpswap_inner_instruction_data(
     discriminator: &[u8],
     data: &[u8],
@@ -57,9 +59,10 @@ pub fn parse_pumpswap_inner_instruction_data(
 }
 
 
-/// Parse PumpSwap account data
+/// Parse `PumpSwap` account data
 ///
 /// Routes to specific account parsing functions based on the discriminator
+#[must_use]
 pub fn parse_pumpswap_account_data(
     discriminator: &[u8],
     account: &crate::streaming::grpc::AccountPretty,
@@ -79,21 +82,13 @@ pub fn parse_pumpswap_account_data(
 /// Parse buy log event
 fn parse_buy_inner_instruction(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
     // Note: event_type will be set by instruction parser
-    if let Some(event) = pump_swap_buy_event_log_decode(data) {
-        Some(DexEvent::PumpSwapBuyEvent(PumpSwapBuyEvent { metadata, ..event }))
-    } else {
-        None
-    }
+    pump_swap_buy_event_log_decode(data).map(|event| DexEvent::PumpSwapBuyEvent(PumpSwapBuyEvent { metadata, ..event }))
 }
 
 /// Parse sell log event
 fn parse_sell_inner_instruction(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
     // Note: event_type will be set by instruction parser
-    if let Some(event) = pump_swap_sell_event_log_decode(data) {
-        Some(DexEvent::PumpSwapSellEvent(PumpSwapSellEvent { metadata, ..event }))
-    } else {
-        None
-    }
+    pump_swap_sell_event_log_decode(data).map(|event| DexEvent::PumpSwapSellEvent(PumpSwapSellEvent { metadata, ..event }))
 }
 
 /// Parse create pool log event
@@ -102,36 +97,26 @@ fn parse_create_pool_inner_instruction(
     metadata: EventMetadata,
 ) -> Option<DexEvent> {
     // Note: event_type will be set by instruction parser
-    if let Some(event) = pump_swap_create_pool_event_log_decode(data) {
-        Some(DexEvent::PumpSwapCreatePoolEvent(PumpSwapCreatePoolEvent { metadata, ..event }))
-    } else {
-        None
-    }
+    pump_swap_create_pool_event_log_decode(data).map(|event| {
+        DexEvent::PumpSwapCreatePoolEvent(PumpSwapCreatePoolEvent { metadata, ..event })
+    })
 }
 
 /// Parse deposit log event
 fn parse_deposit_inner_instruction(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
     // Note: event_type will be set by instruction parser
-    if let Some(event) = pump_swap_deposit_event_log_decode(data) {
-        Some(DexEvent::PumpSwapDepositEvent(PumpSwapDepositEvent { metadata, ..event }))
-    } else {
-        None
-    }
+    pump_swap_deposit_event_log_decode(data).map(|event| DexEvent::PumpSwapDepositEvent(PumpSwapDepositEvent { metadata, ..event }))
 }
 
 /// Parse withdraw log event
 fn parse_withdraw_inner_instruction(data: &[u8], metadata: EventMetadata) -> Option<DexEvent> {
     // Note: event_type will be set by instruction parser
-    if let Some(event) = pump_swap_withdraw_event_log_decode(data) {
-        Some(DexEvent::PumpSwapWithdrawEvent(PumpSwapWithdrawEvent { metadata, ..event }))
-    } else {
-        None
-    }
+    pump_swap_withdraw_event_log_decode(data).map(|event| DexEvent::PumpSwapWithdrawEvent(PumpSwapWithdrawEvent { metadata, ..event }))
 }
 
 /// Parse buy instruction event
 ///
-/// Buy instruction has 23 fixed accounts (aligned with idl/pump_amm.json)
+/// Buy instruction has 23 fixed accounts (aligned with `idl/pump_amm.json`)
 fn parse_buy_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -168,9 +153,9 @@ fn parse_buy_instruction(
     }))
 }
 
-/// Parse buy_exact_quote_in instruction event
+/// Parse `buy_exact_quote_in` instruction event
 ///
-/// Account layout is the same as buy; order: spendable_quote_in (SOL), min_base_amount_out (token).
+/// Account layout is the same as buy; order: `spendable_quote_in` (SOL), `min_base_amount_out` (token).
 fn parse_buy_exact_quote_in_instruction(
     data: &[u8],
     accounts: &[Pubkey],
@@ -210,7 +195,7 @@ fn parse_buy_exact_quote_in_instruction(
 
 /// Parse sell instruction event
 ///
-/// Sell instruction has 21 fixed accounts (aligned with idl/pump_amm.json)
+/// Sell instruction has 21 fixed accounts (aligned with `idl/pump_amm.json`)
 fn parse_sell_instruction(
     data: &[u8],
     accounts: &[Pubkey],

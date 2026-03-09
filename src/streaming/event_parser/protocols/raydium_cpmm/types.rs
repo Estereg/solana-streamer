@@ -30,6 +30,7 @@ pub struct AmmConfig {
 
 pub const AMM_CONFIG_SIZE: usize = 228;
 
+#[must_use]
 pub fn amm_config_decode(data: &[u8]) -> Option<AmmConfig> {
     if data.len() < AMM_CONFIG_SIZE {
         return None;
@@ -37,25 +38,24 @@ pub fn amm_config_decode(data: &[u8]) -> Option<AmmConfig> {
     borsh::from_slice::<AmmConfig>(&data[..AMM_CONFIG_SIZE]).ok()
 }
 
+#[must_use]
 pub fn amm_config_parser(account: &AccountPretty, mut metadata: EventMetadata) -> Option<DexEvent> {
     metadata.event_type = EventType::AccountRaydiumCpmmAmmConfig;
 
     if account.data.len() < AMM_CONFIG_SIZE + 8 {
         return None;
     }
-    if let Some(amm_config) = amm_config_decode(&account.data[8..AMM_CONFIG_SIZE + 8]) {
-        Some(DexEvent::RaydiumCpmmAmmConfigAccountEvent(RaydiumCpmmAmmConfigAccountEvent {
+    amm_config_decode(&account.data[8..AMM_CONFIG_SIZE + 8]).map(|amm_config| {
+        DexEvent::RaydiumCpmmAmmConfigAccountEvent(RaydiumCpmmAmmConfigAccountEvent {
             metadata,
             pubkey: account.pubkey,
             executable: account.executable,
             lamports: account.lamports,
             owner: account.owner,
             rent_epoch: account.rent_epoch,
-            amm_config: amm_config,
-        }))
-    } else {
-        None
-    }
+            amm_config,
+        })
+    })
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
@@ -92,6 +92,7 @@ pub struct PoolState {
 
 pub const POOL_STATE_SIZE: usize = 629;
 
+#[must_use]
 pub fn pool_state_decode(data: &[u8]) -> Option<PoolState> {
     if data.len() < POOL_STATE_SIZE {
         return None;
@@ -99,23 +100,22 @@ pub fn pool_state_decode(data: &[u8]) -> Option<PoolState> {
     borsh::from_slice::<PoolState>(&data[..POOL_STATE_SIZE]).ok()
 }
 
+#[must_use]
 pub fn pool_state_parser(account: &AccountPretty, mut metadata: EventMetadata) -> Option<DexEvent> {
     metadata.event_type = EventType::AccountRaydiumCpmmPoolState;
 
     if account.data.len() < POOL_STATE_SIZE + 8 {
         return None;
     }
-    if let Some(pool_state) = pool_state_decode(&account.data[8..POOL_STATE_SIZE + 8]) {
-        Some(DexEvent::RaydiumCpmmPoolStateAccountEvent(RaydiumCpmmPoolStateAccountEvent {
+    pool_state_decode(&account.data[8..POOL_STATE_SIZE + 8]).map(|pool_state| {
+        DexEvent::RaydiumCpmmPoolStateAccountEvent(RaydiumCpmmPoolStateAccountEvent {
             metadata,
             pubkey: account.pubkey,
             executable: account.executable,
             lamports: account.lamports,
             owner: account.owner,
             rent_epoch: account.rent_epoch,
-            pool_state: pool_state,
-        }))
-    } else {
-        None
-    }
+            pool_state,
+        })
+    })
 }

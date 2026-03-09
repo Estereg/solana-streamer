@@ -1,5 +1,4 @@
 use anyhow::Result;
-use solana_sdk::signature::{Keypair, Signer};
 use solana_streamer_sdk::streaming::event_parser::common::filter::EventTypeFilter;
 use solana_streamer_sdk::streaming::event_parser::common::types::EventType;
 use solana_streamer_sdk::streaming::event_parser::Protocol;
@@ -7,9 +6,12 @@ use solana_streamer_sdk::streaming::yellowstone_grpc::{
     AccountFilter, TransactionFilter, YellowstoneGrpc,
 };
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::sync::Arc;
 use tokio::time::sleep;
+use std::time::{Duration, Instant};
+use std::sync::Mutex;
+use solana_sdk::signature::Keypair;
+use solana_sdk::signer::Signer;
 
 const PUMPFUN_PROGRAM_ID: &str = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
 const RAYDIUM_CPMM_PROGRAM_ID: &str = "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C";
@@ -19,28 +21,21 @@ const API_KEY: Option<&str> = None;
 const MONITORING_DURATION_SECS: u64 = 10;
 
 /// Demonstrates dynamic subscription updates and filter changes in real-time
+#[allow(clippy::too_many_lines)]
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("Connecting to Yellowstone gRPC at {}", GRPC_ENDPOINT);
+    println!("Connecting to Yellowstone gRPC at {GRPC_ENDPOINT}");
     let client =
-        Arc::new(YellowstoneGrpc::new(GRPC_ENDPOINT.to_string(), API_KEY.map(|s| s.to_string()))?);
+        Arc::new(YellowstoneGrpc::new(GRPC_ENDPOINT.to_string(), API_KEY.map(ToString::to_string))?);
 
     let event_counter = Arc::new(AtomicU64::new(0));
     let counter = event_counter.clone();
 
     let callback =
         move |event: solana_streamer_sdk::streaming::event_parser::DexEvent| {
-            let count = counter.fetch_add(1, Ordering::Relaxed);
-
-            let protocol = match event.metadata().event_type {
-                EventType::PumpFunBuy | EventType::PumpFunSell => "PumpFun",
-                EventType::RaydiumCpmmSwapBaseInput | EventType::RaydiumCpmmSwapBaseOutput => {
-                    "RaydiumCpmm"
-                }
-                _ => "Unknown",
-            };
-
-            println!("Event #{}: {:11} - {:.8}...", count + 1, protocol, event.metadata().signature);
+            let count_plus_1 = counter.fetch_add(1, Ordering::Relaxed) + 1;
+            let protocol = event.metadata().protocol.to_string();
+            println!("Event #{count_plus_1}: {protocol:11} - {:.8}...", event.metadata().signature);
         };
 
     println!("\n=== Phase 1: PumpFun only ===");
@@ -63,25 +58,24 @@ async fn main() -> Result<()> {
     if let Err(e) = client
         .subscribe_events_immediate(
             vec![Protocol::PumpFun, Protocol::RaydiumCpmm],
-            vec![pumpfun_filter],
-            vec![account_filter],
+            &[pumpfun_filter],
+            &[account_filter],
             Some(trade_event_filter),
             None,
             callback,
         )
         .await
     {
-        println!("Failed to create subscription: {}", e);
+        println!("Failed to create subscription: {e}");
         return Ok(());
     }
 
     println!(
-        "Subscribed to PumpFun transactions with trade event filters, monitoring for {}s...",
-        MONITORING_DURATION_SECS
+        "Subscribed to PumpFun transactions with trade event filters, monitoring for {MONITORING_DURATION_SECS}s...",
     );
     sleep(Duration::from_secs(MONITORING_DURATION_SECS)).await;
     let phase1_count = event_counter.load(Ordering::Relaxed);
-    println!("Phase 1: {} events", phase1_count);
+    println!("Phase 1: {phase1_count} events");
 
     println!("\n=== Phase 2: PumpFun + RaydiumCpmm ===");
     let multi_protocol_filter = TransactionFilter {
@@ -92,22 +86,22 @@ async fn main() -> Result<()> {
 
     if let Err(e) = client
         .update_subscription(
-            vec![multi_protocol_filter],
-            vec![AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
+            &[multi_protocol_filter],
+            &[AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
         )
         .await
     {
-        println!("Failed to update subscription: {}", e);
+        println!("Failed to update subscription: {e}");
         return Ok(());
     }
 
     println!(
-        "Updated to PumpFun + RaydiumCpmm transactions, monitoring for {}s...",
-        MONITORING_DURATION_SECS
+        "Updated to PumpFun + RaydiumCpmm transactions, monitoring for {MONITORING_DURATION_SECS}s...",
     );
     sleep(Duration::from_secs(MONITORING_DURATION_SECS)).await;
     let phase2_count = event_counter.load(Ordering::Relaxed);
-    println!("Phase 2: {} events", phase2_count - phase1_count);
+    let events_in_phase2 = phase2_count - phase1_count;
+    println!("Phase 2: {events_in_phase2} events");
 
     println!("\n=== Phase 3: RaydiumCpmm only ===");
     let raydium_cpmm_filter = TransactionFilter {
@@ -118,22 +112,22 @@ async fn main() -> Result<()> {
 
     if let Err(e) = client
         .update_subscription(
-            vec![raydium_cpmm_filter],
-            vec![AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
+            &[raydium_cpmm_filter],
+            &[AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
         )
         .await
     {
-        println!("Failed to update subscription: {}", e);
+        println!("Failed to update subscription: {e}");
         return Ok(());
     }
 
     sleep(Duration::from_secs(MONITORING_DURATION_SECS)).await;
     println!(
-        "Updated to RaydiumCpmm transactions only, monitoring for {}s...",
-        MONITORING_DURATION_SECS
+        "Updated to RaydiumCpmm transactions only, monitoring for {MONITORING_DURATION_SECS}s...",
     );
     let phase3_count = event_counter.load(Ordering::Relaxed);
-    println!("Phase 3: {} events", phase3_count - phase2_count);
+    let events_in_phase3 = phase3_count - phase2_count;
+    println!("Phase 3: {events_in_phase3} events");
 
     println!("\n=== Phase 4: Back to PumpFun only ===");
     let pumpfun_only_filter = TransactionFilter {
@@ -144,22 +138,22 @@ async fn main() -> Result<()> {
 
     if let Err(e) = client
         .update_subscription(
-            vec![pumpfun_only_filter],
-            vec![AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
+            &[pumpfun_only_filter],
+            &[AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
         )
         .await
     {
-        println!("Failed to update subscription: {}", e);
+        println!("Failed to update subscription: {e}");
         return Ok(());
     }
 
     sleep(Duration::from_secs(MONITORING_DURATION_SECS)).await;
     println!(
-        "Updated to PumpFun transactions only, monitoring for {}s...",
-        MONITORING_DURATION_SECS
+        "Updated to PumpFun transactions only, monitoring for {MONITORING_DURATION_SECS}s...",
     );
     let phase4_count = event_counter.load(Ordering::Relaxed);
-    println!("Phase 4: {} events", phase4_count - phase3_count);
+    let events_in_phase4 = phase4_count - phase3_count;
+    println!("Phase 4: {events_in_phase4} events");
 
     println!("\n=== Phase 5: All events ===");
     let empty_filter = TransactionFilter {
@@ -170,22 +164,22 @@ async fn main() -> Result<()> {
 
     if let Err(e) = client
         .update_subscription(
-            vec![empty_filter],
-            vec![AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
+            &[empty_filter],
+            &[AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
         )
         .await
     {
-        println!("Failed to update subscription: {}", e);
+        println!("Failed to update subscription: {e}");
         return Ok(());
     }
 
     sleep(Duration::from_secs(MONITORING_DURATION_SECS)).await;
     println!(
-        "Updated to all transactions (no filters), monitoring for {}s...",
-        MONITORING_DURATION_SECS
+        "Updated to all transactions (no filters), monitoring for {MONITORING_DURATION_SECS}s...",
     );
     let phase5_count = event_counter.load(Ordering::Relaxed);
-    println!("Phase 5: {} events", phase5_count - phase4_count);
+    let events_in_phase5 = phase5_count - phase4_count;
+    println!("Phase 5: {events_in_phase5} events");
 
     println!("\n=== Phase 6: Silence ===");
 
@@ -202,12 +196,12 @@ async fn main() -> Result<()> {
 
     if let Err(e) = client
         .update_subscription(
-            vec![silence_filter],
-            vec![AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
+            &[silence_filter],
+            &[AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
         )
         .await
     {
-        println!("Failed to update subscription: {}", e);
+        println!("Failed to update subscription: {e}");
         return Ok(());
     }
 
@@ -236,17 +230,16 @@ async fn main() -> Result<()> {
         println!("Phase 6: 0 events (immediate filter application)");
     } else if let Ok(last_time) = last_event_time.lock() {
         let propagation_time = last_time.duration_since(start_time);
+        let propagation_time_ms = propagation_time.as_millis();
         println!(
-            "Phase 6: {} events during propagation, filter took {}ms",
-            events_during_silence,
-            propagation_time.as_millis()
+            "Phase 6: {events_during_silence} events during propagation, filter took {propagation_time_ms}ms"
         );
     }
 
     println!("\n=== Phase 7: Shutdown ===");
 
     let shutdown_client =
-        Arc::new(YellowstoneGrpc::new(GRPC_ENDPOINT.to_string(), API_KEY.map(|s| s.to_string()))?);
+        Arc::new(YellowstoneGrpc::new(GRPC_ENDPOINT.to_string(), API_KEY.map(ToString::to_string))?);
 
     let shutdown_event_counter = Arc::new(AtomicU64::new(0));
     let shutdown_counter = shutdown_event_counter.clone();
@@ -258,25 +251,25 @@ async fn main() -> Result<()> {
     if let Err(e) = shutdown_client
         .subscribe_events_immediate(
             vec![Protocol::PumpFun, Protocol::RaydiumCpmm],
-            vec![TransactionFilter {
+            &[TransactionFilter {
                 account_include: vec![],
                 account_exclude: vec![],
                 account_required: vec![],
             }],
-            vec![AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
+            &[AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
             None,
             None,
             shutdown_callback,
         )
         .await
     {
-        println!("Failed to subscribe shutdown client: {}", e);
+        println!("Failed to subscribe shutdown client: {e}");
         return Ok(());
     }
 
     sleep(Duration::from_millis(1000)).await;
     let pre_stop_count = shutdown_event_counter.load(Ordering::Relaxed);
-    println!("Received {} events before stop", pre_stop_count);
+    println!("Received {pre_stop_count} events before stop");
 
     let stop_time = Instant::now();
     shutdown_client.stop().await;
@@ -286,7 +279,7 @@ async fn main() -> Result<()> {
     let post_stop_count = shutdown_event_counter.load(Ordering::Relaxed);
     let during_stop = post_stop_count - pre_stop_count;
     if during_stop > 0 {
-        println!("  {} events received during stop()", during_stop);
+        println!("  {during_stop} events received during stop()");
     }
 
     let last_event_time = Arc::new(Mutex::new(stop_time));
@@ -312,11 +305,10 @@ async fn main() -> Result<()> {
     } else if let Ok(last_time) = last_event_time.lock() {
         let post_stop_duration = last_time.duration_since(stop_time);
         let silence_duration = Instant::now().duration_since(*last_time);
+        let post_stop_duration_ms = post_stop_duration.as_millis();
+        let silence_duration_ms = silence_duration.as_millis();
         println!(
-            "Phase 7: {} events arrived up to {}ms after stop(), then silent for {}ms",
-            after_stop,
-            post_stop_duration.as_millis(),
-            silence_duration.as_millis()
+            "Phase 7: {after_stop} events arrived up to {post_stop_duration_ms}ms after stop(), then silent for {silence_duration_ms}ms",
         );
     }
 
@@ -328,27 +320,27 @@ async fn main() -> Result<()> {
     match client
         .subscribe_events_immediate(
             vec![Protocol::RaydiumCpmm],
-            vec![TransactionFilter {
+            &[TransactionFilter {
                 account_include: vec![RAYDIUM_CPMM_PROGRAM_ID.to_string()],
                 account_exclude: vec![],
                 account_required: vec![],
             }],
-            vec![AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
+            &[AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
             None,
             None,
             test_callback,
         )
         .await
     {
-        Ok(_) => println!("ERROR: Same client created second subscription"),
+        Ok(()) => println!("ERROR: Same client created second subscription"),
         Err(e) if e.to_string().contains("Already subscribed") => {
             println!("✓ Single subscription enforcement working");
         }
-        Err(e) => println!("Unexpected error: {}", e),
+        Err(e) => println!("Unexpected error: {e}"),
     }
 
     let client2 =
-        Arc::new(YellowstoneGrpc::new(GRPC_ENDPOINT.to_string(), API_KEY.map(|s| s.to_string()))?);
+        Arc::new(YellowstoneGrpc::new(GRPC_ENDPOINT.to_string(), API_KEY.map(std::string::ToString::to_string))?);
 
     let client2_counter = Arc::new(AtomicU64::new(0));
     let counter2 = client2_counter.clone();
@@ -360,25 +352,25 @@ async fn main() -> Result<()> {
     match client2
         .subscribe_events_immediate(
             vec![Protocol::RaydiumCpmm],
-            vec![TransactionFilter {
+            &[TransactionFilter {
                 account_include: vec![RAYDIUM_CPMM_PROGRAM_ID.to_string()],
                 account_exclude: vec![],
                 account_required: vec![],
             }],
-            vec![AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
+            &[AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
             None,
             None,
             client2_callback,
         )
         .await
     {
-        Ok(_) => {
+        Ok(()) => {
             sleep(Duration::from_millis(500)).await;
             let count = client2_counter.load(Ordering::Relaxed);
-            println!("✓ Second client: {} events", count);
+            println!("✓ Second client: {count} events");
             client2.stop().await;
         }
-        Err(e) => println!("ERROR: Second client failed: {}", e),
+        Err(e) => println!("ERROR: Second client failed: {e}"),
     }
 
     println!("\n=== Advanced subscription enforcement ===");
@@ -387,54 +379,54 @@ async fn main() -> Result<()> {
         |_event: solana_streamer_sdk::streaming::event_parser::DexEvent| {};
 
     let client3 =
-        Arc::new(YellowstoneGrpc::new(GRPC_ENDPOINT.to_string(), API_KEY.map(|s| s.to_string()))?);
+        Arc::new(YellowstoneGrpc::new(GRPC_ENDPOINT.to_string(), API_KEY.map(ToString::to_string))?);
 
     // First subscription should succeed
     match client3
         .subscribe_events_immediate(
             vec![Protocol::RaydiumCpmm],
-            vec![TransactionFilter {
+            &[TransactionFilter {
                 account_include: vec![RAYDIUM_CPMM_PROGRAM_ID.to_string()],
                 account_exclude: vec![],
                 account_required: vec![],
             }],
-            vec![AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
+            &[AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
             None,
             None,
             test_callback_advanced,
         )
         .await
     {
-        Ok(_) => {
+        Ok(()) => {
             // Second subscription attempt on same client should fail
             match client3
                 .subscribe_events_immediate(
                     vec![Protocol::RaydiumCpmm],
-                    vec![TransactionFilter {
+                    &[TransactionFilter {
                         account_include: vec![RAYDIUM_CPMM_PROGRAM_ID.to_string()],
                         account_exclude: vec![],
                         account_required: vec![],
                     }],
-                    vec![AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
+                    &[AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
                     None,
                     None,
                     |_| {},
                 )
                 .await
             {
-                Ok(_) => println!("ERROR: Same client created second advanced subscription"),
+                Ok(()) => println!("ERROR: Same client created second advanced subscription"),
                 Err(e) if e.to_string().contains("Already subscribed") => {
                     println!("✓ Advanced single subscription enforcement working");
                 }
-                Err(e) => println!("Unexpected error: {}", e),
+                Err(e) => println!("Unexpected error: {e}"),
             }
         }
-        Err(e) => println!("ERROR: First advanced subscription failed: {}", e),
+        Err(e) => println!("ERROR: First advanced subscription failed: {e}"),
     }
 
     // Test that a second client can subscribe using advanced method
     let client4 =
-        Arc::new(YellowstoneGrpc::new(GRPC_ENDPOINT.to_string(), API_KEY.map(|s| s.to_string()))?);
+        Arc::new(YellowstoneGrpc::new(GRPC_ENDPOINT.to_string(), API_KEY.map(ToString::to_string))?);
 
     let client4_counter = Arc::new(AtomicU64::new(0));
     let counter4 = client4_counter.clone();
@@ -446,25 +438,25 @@ async fn main() -> Result<()> {
     match client4
         .subscribe_events_immediate(
             vec![Protocol::RaydiumCpmm],
-            vec![TransactionFilter {
+            &[TransactionFilter {
                 account_include: vec![RAYDIUM_CPMM_PROGRAM_ID.to_string()],
                 account_exclude: vec![],
                 account_required: vec![],
             }],
-            vec![AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
+            &[AccountFilter { account: vec![], owner: vec![], filters: vec![] }],
             None,
             None,
             client4_callback,
         )
         .await
     {
-        Ok(_) => {
+        Ok(()) => {
             sleep(Duration::from_millis(500)).await;
             let count = client4_counter.load(Ordering::Relaxed);
-            println!("✓ Second client (advanced): {} events", count);
+            println!("✓ Second client (advanced): {count} events");
             client4.stop().await;
         }
-        Err(e) => println!("ERROR: Second client (advanced) failed: {}", e),
+        Err(e) => println!("ERROR: Second client (advanced) failed: {e}"),
     }
 
     client3.stop().await;

@@ -15,6 +15,7 @@ pub const RAYDIUM_AMM_V4_PROGRAM_ID: Pubkey =
 /// Parse Raydium AMM V4 instruction data
 ///
 /// Routes to specific instruction parsing functions based on the discriminator
+#[must_use]
 pub fn parse_raydium_amm_v4_instruction_data(
     discriminator: &[u8],
     data: &[u8],
@@ -41,6 +42,7 @@ pub fn parse_raydium_amm_v4_instruction_data(
 /// Parse Raydium AMM V4 inner instruction data
 ///
 /// Raydium AMM V4 does not have inner instruction events
+#[must_use]
 pub fn parse_raydium_amm_v4_inner_instruction_data(
     _discriminator: &[u8],
     _data: &[u8],
@@ -53,6 +55,7 @@ pub fn parse_raydium_amm_v4_inner_instruction_data(
 /// Parse Raydium AMM V4 account data
 ///
 /// Routes to specific account parsing functions based on the discriminator
+#[must_use]
 pub fn parse_raydium_amm_v4_account_data(
     discriminator: &[u8],
     account: &crate::streaming::grpc::AccountPretty,

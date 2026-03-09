@@ -1,7 +1,7 @@
 use solana_sdk::pubkey::Pubkey;
 
 use crate::streaming::event_parser::{
-    common::{utils::*, EventMetadata, EventType},
+    common::{utils::{read_u8, read_u32_le, read_u64_le}, EventMetadata, EventType},
     protocols::bonk::{
         bonk_pool_create_event_log_decode, bonk_trade_event_log_decode, discriminators, AmmFeeOn,
         BonkMigrateToAmmEvent, BonkMigrateToCpswapEvent, BonkPoolCreateEvent, BonkTradeEvent,
@@ -18,6 +18,7 @@ pub const BONK_PROGRAM_ID: Pubkey =
 /// Parse Bonk instruction data
 ///
 /// Routes to specific instruction parsing functions based on the discriminator
+#[must_use]
 pub fn parse_bonk_instruction_data(
     discriminator: &[u8],
     data: &[u8],
@@ -50,7 +51,7 @@ pub fn parse_bonk_instruction_data(
             parse_migrate_to_amm_instruction(data, accounts, metadata)
         }
         discriminators::MIGRATE_TO_CP_SWAP => {
-            parse_migrate_to_cpswap_instruction(data, accounts, metadata)
+            Some(parse_migrate_to_cpswap_instruction(data, accounts, metadata))
         }
         _ => None,
     }
@@ -59,6 +60,7 @@ pub fn parse_bonk_instruction_data(
 /// Parse Bonk inner instruction data
 ///
 /// Routes to specific inner instruction parsing functions based on the discriminator
+#[must_use]
 pub fn parse_bonk_inner_instruction_data(
     discriminator: &[u8],
     data: &[u8],
@@ -78,6 +80,7 @@ pub fn parse_bonk_inner_instruction_data(
 /// Parse Bonk account data
 ///
 /// Routes to specific account parsing functions based on the discriminator
+#[must_use]
 pub fn parse_bonk_account_data(
     discriminator: &[u8],
     account: &crate::streaming::grpc::AccountPretty,
@@ -104,11 +107,7 @@ fn parse_pool_create_inner_instruction(
 ) -> Option<DexEvent> {
     // Note: event_type will be set by the instruction parser, not here
     // Because different initialize instructions have different event types
-    if let Some(event) = bonk_pool_create_event_log_decode(data) {
-        Some(DexEvent::BonkPoolCreateEvent(BonkPoolCreateEvent { metadata, ..event }))
-    } else {
-        None
-    }
+    bonk_pool_create_event_log_decode(data).map(|event| DexEvent::BonkPoolCreateEvent(BonkPoolCreateEvent { metadata, ..event }))
 }
 
 /// Parse trade event
@@ -410,7 +409,7 @@ fn parse_initialize_with_token_2022_instruction(
     }))
 }
 
-/// Parse MintParams structure
+/// Parse `MintParams` structure
 fn parse_mint_params(data: &[u8], offset: &mut usize) -> Option<MintParams> {
     // Read decimals (1 byte)
     let decimals = read_u8(data, *offset)?;
@@ -446,7 +445,7 @@ fn parse_mint_params(data: &[u8], offset: &mut usize) -> Option<MintParams> {
     Some(MintParams { decimals, name, symbol, uri })
 }
 
-/// Parse CurveParams structure
+/// Parse `CurveParams` structure
 fn parse_curve_params(data: &[u8], offset: &mut usize) -> Option<CurveParams> {
     // Read curve type identifier (1 byte)
     let curve_type = read_u8(data, *offset)?;
@@ -503,7 +502,7 @@ fn parse_curve_params(data: &[u8], offset: &mut usize) -> Option<CurveParams> {
     }
 }
 
-/// Parse VestingParams structure
+/// Parse `VestingParams` structure
 fn parse_vesting_params(data: &[u8], offset: &mut usize) -> Option<VestingParams> {
     let total_locked_amount = read_u64_le(data, *offset)?;
     *offset += 8;
@@ -531,7 +530,7 @@ fn parse_migrate_to_amm_instruction(
     let quote_lot_size = u64::from_le_bytes(data[8..16].try_into().unwrap());
     let market_vault_signer_nonce = data[16];
 
-    Some(DexEvent::BonkMigrateToAmmEvent(BonkMigrateToAmmEvent {
+    Some(DexEvent::BonkMigrateToAmmEvent(Box::new(BonkMigrateToAmmEvent {
         metadata,
         base_lot_size,
         quote_lot_size,
@@ -568,8 +567,7 @@ fn parse_migrate_to_amm_instruction(
         associated_token_program: accounts[29],
         system_program: accounts[30],
         rent_program: accounts[31],
-        ..Default::default()
-    }))
+    })))
 }
 
 /// Parse migrate to CP Swap event
@@ -577,10 +575,10 @@ fn parse_migrate_to_cpswap_instruction(
     _data: &[u8],
     accounts: &[Pubkey],
     mut metadata: EventMetadata,
-) -> Option<DexEvent> {
+) -> DexEvent {
     metadata.event_type = EventType::BonkMigrateToCpswap;
 
-    Some(DexEvent::BonkMigrateToCpswapEvent(BonkMigrateToCpswapEvent {
+    DexEvent::BonkMigrateToCpswapEvent(BonkMigrateToCpswapEvent {
         metadata,
         payer: accounts[0],
         base_mint: accounts[1],
@@ -611,6 +609,5 @@ fn parse_migrate_to_cpswap_instruction(
         rent_program: accounts[26],
         metadata_program: accounts[27],
         remaining_accounts: accounts[28..].to_vec(),
-        ..Default::default()
-    }))
+    })
 }

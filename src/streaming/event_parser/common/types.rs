@@ -20,6 +20,12 @@ pub enum ProtocolType {
     Common,
 }
 
+impl fmt::Display for ProtocolType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
+
 /// Event type enumeration
 #[derive(
     Debug, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, BorshSerialize, BorshDeserialize,
@@ -131,7 +137,7 @@ pub const BLOCK_EVENT_TYPES: &[EventType] = &[EventType::BlockMeta];
 
 impl fmt::Display for EventType {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(formatter, "{:?}", self)
+        write!(formatter, "{self:?}")
     }
 }
 
@@ -144,6 +150,24 @@ pub struct SwapData {
     pub from_amount: u64,
     pub to_amount: u64,
     pub description: Option<Cow<'static, str>>,
+}
+
+/// Transaction parameters for parsing
+#[derive(Debug, Clone)]
+pub struct TransactionParams {
+    pub signature: Signature,
+    pub slot: u64,
+    pub block_time: Option<prost_types::Timestamp>,
+    pub recv_us: i64,
+    pub tx_index: Option<u64>,
+    pub recent_blockhash: Option<String>,
+}
+
+/// Parsing options
+#[derive(Debug, Clone, Copy)]
+pub struct ParseOptions<'a> {
+    pub protocols: &'a [crate::streaming::event_parser::Protocol],
+    pub event_type_filter: Option<&'a crate::streaming::event_parser::common::filter::EventTypeFilter>,
 }
 
 /// Event metadata
@@ -168,7 +192,8 @@ pub struct EventMetadata {
 
 impl EventMetadata {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    #[must_use]
+    pub const fn new(
         signature: Signature,
         slot: u64,
         block_time: i64,
@@ -259,13 +284,18 @@ impl InnerInstructionLike for yellowstone_grpc_proto::prelude::InnerInstruction 
 }
 
 
-/// Extract event context (mint/token account/vault info) from a DexEvent
-fn extract_swap_context(event: &DexEvent) -> (
+pub type SwapContext = (
     SwapData,
-    Option<Pubkey>, Option<Pubkey>,
-    Option<Pubkey>, Option<Pubkey>,
-    Option<Pubkey>, Option<Pubkey>,
-) {
+    Option<Pubkey>,
+    Option<Pubkey>,
+    Option<Pubkey>,
+    Option<Pubkey>,
+    Option<Pubkey>,
+    Option<Pubkey>,
+);
+
+/// Extract event context (mint/token account/vault info) from a `DexEvent`
+fn extract_swap_context(event: &DexEvent) -> SwapContext {
     let mut swap_data = SwapData::default();
     let mut from_mint: Option<Pubkey> = None;
     let mut to_mint: Option<Pubkey> = None;
@@ -333,7 +363,7 @@ fn extract_swap_context(event: &DexEvent) -> (
     (swap_data, from_mint, to_mint, user_from_token, user_to_token, from_vault, to_vault)
 }
 
-/// Generic swap data extraction that works with any instruction type implementing InnerInstructionLike
+/// Generic swap data extraction that works with any instruction type implementing `InnerInstructionLike`
 fn extract_swap_data_from_instructions<I: InnerInstructionLike>(
     event: &DexEvent,
     instructions: impl Iterator<Item = I>,
@@ -349,7 +379,8 @@ fn extract_swap_data_from_instructions<I: InnerInstructionLike>(
     let to_mint = to_mint_opt.unwrap_or_default();
     let from_mint = from_mint_opt.unwrap_or_default();
 
-    for instruction in instructions.skip((current_index + 1) as usize) {
+    let skip_count = usize::try_from((current_index + 1).max(0)).unwrap_or(0);
+    for instruction in instructions.skip(skip_count) {
         let program_id = accounts.get(instruction.program_id_index()).copied().unwrap_or_default();
         if !SYSTEM_PROGRAMS.contains(&program_id) {
             break;
@@ -436,6 +467,7 @@ fn extract_swap_data_from_instructions<I: InnerInstructionLike>(
 }
 
 /// Parse token transfer data from standard Solana inner instructions
+#[must_use]
 pub fn parse_swap_data_from_next_instructions(
     event: &DexEvent,
     inner_instruction: &solana_transaction_status::InnerInstructions,
@@ -451,6 +483,7 @@ pub fn parse_swap_data_from_next_instructions(
 }
 
 /// Parse token transfer data from gRPC inner instructions
+#[must_use]
 pub fn parse_swap_data_from_next_grpc_instructions(
     event: &DexEvent,
     inner_instruction: &yellowstone_grpc_proto::prelude::InnerInstructions,

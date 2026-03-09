@@ -25,9 +25,11 @@ async fn test_grpc() -> Result<(), Box<dyn std::error::Error>> {
     println!("Subscribing to Yellowstone gRPC events...");
 
     // Create low-latency configuration
-    let mut config: ClientConfig = ClientConfig::default();
     // Enable performance monitoring, has performance overhead, disabled by default
-    config.enable_metrics = true;
+    let config = ClientConfig {
+        enable_metrics: true,
+        ..Default::default()
+    };
     let grpc = YellowstoneGrpc::new_with_config(
         "https://solana-yellowstone-grpc.publicnode.com:443".to_string(),
         None,
@@ -49,7 +51,7 @@ async fn test_grpc() -> Result<(), Box<dyn std::error::Error>> {
         Protocol::MeteoraDammV2,
     ];
 
-    println!("Protocols to monitor: {:?}", protocols);
+    println!("Protocols to monitor: {protocols:?}");
 
     // Filter accounts
     let account_include = vec![
@@ -82,14 +84,14 @@ async fn test_grpc() -> Result<(), Box<dyn std::error::Error>> {
     // let event_type_filter = Some(EventTypeFilter { include: vec![EventType::PumpFunTrade] });
 
     println!("Starting to listen for events, press Ctrl+C to stop...");
-    println!("Monitoring programs: {:?}", account_include);
+    println!("Monitoring programs: {account_include:?}");
 
     println!("Starting subscription...");
 
     grpc.subscribe_events_immediate(
         protocols,
-        vec![transaction_filter],
-        vec![account_filter],
+        &[transaction_filter],
+        &[account_filter],
         event_type_filter,
         None,
         callback,
@@ -111,18 +113,18 @@ async fn test_grpc() -> Result<(), Box<dyn std::error::Error>> {
 
 fn create_event_callback() -> impl Fn(DexEvent) {
     |event: DexEvent| {
+        let event_type = event.metadata().event_type.clone();
+        let tx_index = event.metadata().tx_index;
         println!(
-            "🎉 Event received! Type: {:?}, tx_index: {:?}",
-            event.metadata().event_type,
-            event.metadata().tx_index
+            "🎉 Event received! Type: {event_type:?}, tx_index: {tx_index:?}"
         );
         match event {
             DexEvent::BlockMetaEvent(e) => {
-                println!("{:?}", e);
+                println!("{e:?}");
             }
             // .... other events
             _ => {
-                println!("{:?}", event);
+                println!("{event:?}");
             }
         }
     }

@@ -1,17 +1,17 @@
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
-use super::constants::*;
+use super::constants::{
+    DEFAULT_METRICS_PRINT_INTERVAL_SECONDS, DEFAULT_METRICS_WINDOW_SECONDS,
+    MAX_LATENCY_THRESHOLD_MS, SLOW_PROCESSING_THRESHOLD_US, SOLANA_BLOCK_TIME_ADJUSTMENT_MS,
+};
 
-/// Metric category enumeration (renamed from EventType to avoid collision with event_parser::EventType)
+/// Metric category enumeration
 #[derive(Debug, Clone, Copy)]
 pub enum MetricCategory {
     Transaction = 0,
     Account = 1,
     BlockMeta = 2,
 }
-
-/// Compatibility alias
-pub type MetricsEventType = MetricCategory;
 
 impl MetricCategory {
     #[inline]
@@ -21,14 +21,11 @@ impl MetricCategory {
 
     const fn name(self) -> &'static str {
         match self {
-            MetricCategory::Transaction => "TX",
-            MetricCategory::Account => "Account",
-            MetricCategory::BlockMeta => "Block Meta",
+            Self::Transaction => "TX",
+            Self::Account => "Account",
+            Self::BlockMeta => "Block Meta",
         }
     }
-
-    // Compatibility constants
-    pub const TX: MetricCategory = MetricCategory::Transaction;
 }
 
 /// High-performance atomic event metrics
@@ -127,6 +124,7 @@ impl AtomicProcessingTimeStats {
         self.last_time_bits.store(time_bits, Ordering::Relaxed);
 
         // Update cumulative values (convert microseconds to integers to avoid floating point accumulation issues)
+        #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let total_time_us_int = (time_us * event_count as f64) as u64;
         self.total_time_us.fetch_add(total_time_us_int, Ordering::Relaxed);
         self.total_events.fetch_add(event_count, Ordering::Relaxed);
@@ -140,6 +138,7 @@ impl AtomicProcessingTimeStats {
         let total_events = self.total_events.load(Ordering::Relaxed);
 
         let last_time = f64::from_bits(last_bits);
+        #[allow(clippy::cast_precision_loss)]
         let avg_time =
             if total_events > 0 { total_time_us_int as f64 / total_events as f64 } else { 0.0 };
 
@@ -162,7 +161,7 @@ pub struct EventMetricsSnapshot {
     pub processing_stats: ProcessingTimeStats,
 }
 
-/// Compatibility structure - complete performance metrics
+/// Complete performance metrics
 #[derive(Debug, Clone)]
 pub struct PerformanceMetrics {
     pub uptime: std::time::Duration,
@@ -173,9 +172,8 @@ pub struct PerformanceMetrics {
     pub dropped_events_count: u64,
 }
 
-impl PerformanceMetrics {
-    /// Create default performance metrics (compatibility method)
-    pub fn new() -> Self {
+impl Default for PerformanceMetrics {
+    fn default() -> Self {
         let default_stats = ProcessingTimeStats { last_us: 0.0, avg_us: 0.0 };
         let default_metrics = EventMetricsSnapshot {
             process_count: 0,
@@ -222,9 +220,13 @@ impl HighPerformanceMetrics {
     /// Get uptime in seconds
     #[inline]
     pub fn get_uptime_seconds(&self) -> f64 {
-        let now_nanos =
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos()
-                as u64;
+        let now_nanos = u64::try_from(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos(),
+        )
+        .unwrap_or(u64::MAX);
 
         // Lazy initialization of start_nanos (compare-and-swap once)
         let mut start = self.start_nanos.load(Ordering::Relaxed);
@@ -241,15 +243,17 @@ impl HighPerformanceMetrics {
             }
         }
 
-        (now_nanos - start) as f64 / 1_000_000_000.0
+        #[allow(clippy::cast_precision_loss)]
+        let diff = (now_nanos - start) as f64;
+        diff / 1_000_000_000.0
     }
 
     /// Get event metrics snapshot
     #[inline]
     pub fn get_event_metrics(&self, event_type: MetricCategory) -> EventMetricsSnapshot {
         let index = event_type.as_index();
-        let (process_count, events_processed, _) = self.event_metrics[index].get_counts();
-        let processing_stats = self.event_metrics[index].get_processing_stats();
+        let (process_count, events_processed, _) = self.event_metrics.get(index).map_or((0, 0, 0), AtomicEventMetrics::get_counts);
+        let processing_stats = self.event_metrics.get(index).map_or(ProcessingTimeStats { last_us: 0.0, avg_us: 0.0 }, AtomicEventMetrics::get_processing_stats);
 
         EventMetricsSnapshot { process_count, events_processed, processing_stats }
     }
@@ -268,9 +272,13 @@ impl HighPerformanceMetrics {
 
     /// Update window metrics (called by background task)
     fn update_window_metrics(&self, event_type: MetricCategory, window_duration_nanos: u64) {
-        let now_nanos =
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos()
-                as u64;
+        let now_nanos = u64::try_from(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos(),
+        )
+        .unwrap_or(u64::MAX);
 
         let index = event_type.as_index();
         let event_metric = &self.event_metrics[index];
@@ -297,6 +305,7 @@ pub struct MetricsManager;
 
 impl MetricsManager {
     /// Get global singleton instance (zero-cost)
+    #[must_use]
     #[inline]
     pub const fn global() -> Self {
         Self
@@ -330,14 +339,14 @@ impl MetricsManager {
     }
 
     #[inline]
-    fn is_enabled(&self) -> bool {
+    fn is_enabled() -> bool {
         METRICS_ENABLED.load(Ordering::Relaxed)
     }
 
     /// Record process count (non-blocking)
     #[inline]
     pub fn record_process(&self, event_type: MetricCategory) {
-        if self.is_enabled() {
+        if Self::is_enabled() {
             GLOBAL_METRICS.event_metrics[event_type.as_index()].add_process_count();
         }
     }
@@ -345,7 +354,7 @@ impl MetricsManager {
     /// Record event processing (non-blocking)
     #[inline]
     pub fn record_events(&self, event_type: MetricCategory, count: u64, processing_time_us: f64) {
-        if !self.is_enabled() {
+        if !Self::is_enabled() {
             return;
         }
 
@@ -365,25 +374,21 @@ impl MetricsManager {
     #[inline]
     pub fn log_slow_processing(&self, processing_time_us: f64, event_count: usize) {
         if processing_time_us > SLOW_PROCESSING_THRESHOLD_US {
-            log::debug!("Slow processing: {:.2}us for {} events", processing_time_us, event_count);
+            log::debug!("Slow processing: {processing_time_us:.2}us for {event_count} events");
         }
     }
 
     /// Check and warn on high latency (calibrated gRPC latency)
-    /// latency = recv_time - (block_time + 500ms)
+    /// latency = `recv_time` - (`block_time` + 500ms)
     #[inline]
     pub fn check_and_warn_high_latency(&self, recv_us: i64, block_time_ms: i64) {
-        let recv_ms = recv_us / 1000;
+        let receive_ms = recv_us / 1000;
         // Calibrated latency: recv_time - (block_time + 500ms)
-        let adjusted_latency_ms = recv_ms - (block_time_ms + SOLANA_BLOCK_TIME_ADJUSTMENT_MS);
+        let adjusted_latency_ms = receive_ms - (block_time_ms + SOLANA_BLOCK_TIME_ADJUSTMENT_MS);
 
         if adjusted_latency_ms > MAX_LATENCY_THRESHOLD_MS {
             log::warn!(
-                "⚠️  High gRPC latency: {}ms (threshold: {}ms, raw: recv={}ms, block={}ms)",
-                adjusted_latency_ms,
-                MAX_LATENCY_THRESHOLD_MS,
-                recv_ms,
-                block_time_ms
+                "⚠️  High gRPC latency: {adjusted_latency_ms}ms (threshold: {MAX_LATENCY_THRESHOLD_MS}ms, raw: recv={receive_ms}ms, block={block_time_ms}ms)",
             );
         }
     }
@@ -416,7 +421,7 @@ impl MetricsManager {
         // Print dropped event metrics
         let dropped_count = self.get_dropped_events_count();
         if dropped_count > 0 {
-            println!("\n⚠️  Dropped Events: {}", dropped_count);
+            println!("\n⚠️  Dropped Events: {dropped_count}");
         }
 
         // Print event metrics table (with processing time stats)
@@ -441,8 +446,9 @@ impl MetricsManager {
     }
 
     /// Start auto performance monitoring task
-    pub async fn start_auto_monitoring(&self) -> Option<tokio::task::JoinHandle<()>> {
-        if !self.is_enabled() {
+    #[must_use]
+    pub fn start_auto_monitoring(&self) -> Option<tokio::task::JoinHandle<()>> {
+        if !Self::is_enabled() {
             return None;
         }
 
@@ -452,13 +458,14 @@ impl MetricsManager {
             ));
             loop {
                 interval.tick().await;
-                MetricsManager::global().print_metrics();
+                Self::global().print_metrics();
             }
         });
         Some(handle)
     }
 
-    /// Get full performance metrics (compatibility method)
+    /// Get full performance metrics
+    #[must_use]
     pub fn get_metrics(&self) -> PerformanceMetrics {
         PerformanceMetrics {
             uptime: self.get_uptime(),
@@ -470,41 +477,41 @@ impl MetricsManager {
         }
     }
 
-    /// Compatibility method - add transaction process count
+    /// Add transaction process count
     #[inline]
     pub fn add_tx_process_count(&self) {
         self.record_process(MetricCategory::Transaction);
     }
 
-    /// Compatibility method - add account process count
+    /// Add account process count
     #[inline]
     pub fn add_account_process_count(&self) {
         self.record_process(MetricCategory::Account);
     }
 
-    /// Compatibility method - add block meta process count
+    /// Add block meta process count
     #[inline]
     pub fn add_block_meta_process_count(&self) {
         self.record_process(MetricCategory::BlockMeta);
     }
 
-    /// Compatibility method - update metrics
+    /// Update metrics
     #[inline]
     pub fn update_metrics(
         &self,
-        event_type: MetricsEventType,
+        event_type: MetricCategory,
         events_processed: u64,
         processing_time_us: f64,
     ) {
         self.record_events(event_type, events_processed, processing_time_us);
-        self.log_slow_processing(processing_time_us, events_processed as usize);
+        self.log_slow_processing(processing_time_us, usize::try_from(events_processed).unwrap_or(usize::MAX));
     }
 
     /// Update metrics and check latency
     #[inline]
     pub fn update_metrics_with_latency(
         &self,
-        event_type: MetricsEventType,
+        event_type: MetricCategory,
         events_processed: u64,
         processing_time_us: f64,
         recv_us: i64,
@@ -517,7 +524,7 @@ impl MetricsManager {
     /// Increment dropped events count
     #[inline]
     pub fn increment_dropped_events(&self) {
-        if !self.is_enabled() {
+        if !Self::is_enabled() {
             return;
         }
 
@@ -525,15 +532,15 @@ impl MetricsManager {
         let new_count = GLOBAL_METRICS.dropped_events_count.fetch_add(1, Ordering::Relaxed) + 1;
 
         // Log warning every 1000 dropped events
-        if new_count % 1000 == 0 {
-            log::debug!("Dropped events count reached: {}", new_count);
+        if new_count.is_multiple_of(1000) {
+            log::debug!("Dropped events count reached: {new_count}");
         }
     }
 
     /// Batch increment dropped events count
     #[inline]
     pub fn increment_dropped_events_by(&self, count: u64) {
-        if !self.is_enabled() || count == 0 {
+        if !Self::is_enabled() || count == 0 {
             return;
         }
 
@@ -543,12 +550,12 @@ impl MetricsManager {
 
         // Log batch drop event
         if count > 1 {
-            log::debug!("Dropped batch of {} events, total dropped: {}", count, new_count);
+            log::debug!("Dropped batch of {count} events, total dropped: {new_count}");
         }
 
         // Log warning every 1000 dropped events
-        if new_count % 1000 == 0 || (new_count / 1000) != ((new_count - count) / 1000) {
-            log::debug!("Dropped events count reached: {}", new_count);
+        if new_count.is_multiple_of(1000) || (new_count / 1000) != ((new_count - count) / 1000) {
+            log::debug!("Dropped events count reached: {new_count}");
         }
     }
 }

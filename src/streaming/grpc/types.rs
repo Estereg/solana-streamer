@@ -14,7 +14,7 @@ pub type AccountsFilterMap = HashMap<String, SubscribeRequestFilterAccounts>;
 #[derive(Clone, Debug)]
 pub enum EventPretty {
     BlockMeta(BlockMetaPretty),
-    Transaction(TransactionPretty),
+    Transaction(Box<TransactionPretty>),
     Account(AccountPretty),
 }
 
@@ -41,12 +41,13 @@ impl fmt::Debug for AccountPretty {
             .field("lamports", &self.lamports)
             .field("owner", &self.owner)
             .field("rent_epoch", &self.rent_epoch)
-            .field("data", &self.data)
-            .finish()
+            .field("data_len", &self.data.len())
+            .field("recv_us", &self.recv_us)
+            .finish_non_exhaustive()
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct BlockMetaPretty {
     pub slot: u64,
     pub block_hash: String,
@@ -54,22 +55,10 @@ pub struct BlockMetaPretty {
     pub recv_us: i64,
 }
 
-impl fmt::Debug for BlockMetaPretty {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("BlockMetaPretty")
-            .field("slot", &self.slot)
-            .field("block_hash", &self.block_hash)
-            .field("block_time", &self.block_time)
-            .field("recv_us", &self.recv_us)
-            .finish()
-    }
-}
-
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct TransactionPretty {
     pub slot: u64,
-    pub tx_index: Option<u64>, // Transaction index within the slot
-    pub block_hash: String,
+    pub tx_index: Option<u64>,
     pub block_time: Option<Timestamp>,
     pub signature: Signature,
     pub is_vote: bool,
@@ -84,22 +73,9 @@ impl fmt::Debug for TransactionPretty {
             .field("tx_index", &self.tx_index)
             .field("signature", &self.signature)
             .field("is_vote", &self.is_vote)
+            .field("block_time", &self.block_time)
             .field("recv_us", &self.recv_us)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
-impl Default for TransactionPretty {
-    fn default() -> Self {
-        Self {
-            slot: 0,
-            tx_index: None,
-            block_hash: String::new(),
-            block_time: None,
-            signature: Signature::default(),
-            is_vote: false,
-            grpc_tx: SubscribeUpdateTransactionInfo::default(),
-            recv_us: 0,
-        }
-    }
-}

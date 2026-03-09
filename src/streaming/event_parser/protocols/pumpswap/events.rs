@@ -58,6 +58,7 @@ pub struct PumpSwapBuyEvent {
 
 pub const PUMP_SWAP_BUY_EVENT_LOG_SIZE: usize = 385;
 
+#[must_use]
 pub fn pump_swap_buy_event_log_decode(data: &[u8]) -> Option<PumpSwapBuyEvent> {
     if data.len() < PUMP_SWAP_BUY_EVENT_LOG_SIZE {
         return None;
@@ -113,6 +114,7 @@ pub struct PumpSwapSellEvent {
 
 pub const PUMP_SWAP_SELL_EVENT_LOG_SIZE: usize = 352;
 
+#[must_use]
 pub fn pump_swap_sell_event_log_decode(data: &[u8]) -> Option<PumpSwapSellEvent> {
     if data.len() < PUMP_SWAP_SELL_EVENT_LOG_SIZE {
         return None;
@@ -155,6 +157,7 @@ pub struct PumpSwapCreatePoolEvent {
 
 pub const PUMP_SWAP_CREATE_POOL_EVENT_LOG_SIZE: usize = 325;
 
+#[must_use]
 pub fn pump_swap_create_pool_event_log_decode(data: &[u8]) -> Option<PumpSwapCreatePoolEvent> {
     if data.len() < PUMP_SWAP_CREATE_POOL_EVENT_LOG_SIZE {
         return None;
@@ -195,6 +198,7 @@ pub struct PumpSwapDepositEvent {
 
 pub const PUMP_SWAP_DEPOSIT_EVENT_LOG_SIZE: usize = 248;
 
+#[must_use]
 pub fn pump_swap_deposit_event_log_decode(data: &[u8]) -> Option<PumpSwapDepositEvent> {
     if data.len() < PUMP_SWAP_DEPOSIT_EVENT_LOG_SIZE {
         return None;
@@ -235,6 +239,7 @@ pub struct PumpSwapWithdrawEvent {
 
 pub const PUMP_SWAP_WITHDRAW_EVENT_LOG_SIZE: usize = 248;
 
+#[must_use]
 pub fn pump_swap_withdraw_event_log_decode(data: &[u8]) -> Option<PumpSwapWithdrawEvent> {
     if data.len() < PUMP_SWAP_WITHDRAW_EVENT_LOG_SIZE {
         return None;
@@ -268,7 +273,7 @@ pub struct PumpSwapPoolAccountEvent {
     pub pool: Pool,
 }
 
-/// Discriminators for PumpSwap events
+/// Discriminators for `PumpSwap` events
 pub mod discriminators {
     // Event Discriminators
     // pub const BUY_EVENT: &str = "0xe445a52e51cb9a1d67f4521f2cf57777";

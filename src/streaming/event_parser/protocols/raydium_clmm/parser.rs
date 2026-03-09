@@ -20,6 +20,7 @@ pub const RAYDIUM_CLMM_PROGRAM_ID: Pubkey =
 /// Parse Raydium CLMM instruction data
 ///
 /// Routes to specific instruction parsing functions based on the discriminator
+#[must_use]
 pub fn parse_raydium_clmm_instruction_data(
     discriminator: &[u8],
     data: &[u8],
@@ -52,6 +53,7 @@ pub fn parse_raydium_clmm_instruction_data(
 /// Parse Raydium CLMM inner instruction data
 ///
 /// Raydium CLMM does not have inner instruction events
+#[must_use]
 pub fn parse_raydium_clmm_inner_instruction_data(
     _discriminator: &[u8],
     _data: &[u8],
@@ -64,6 +66,7 @@ pub fn parse_raydium_clmm_inner_instruction_data(
 /// Parse Raydium CLMM account data
 ///
 /// Routes to specific account parsing functions based on the discriminator
+#[must_use]
 pub fn parse_raydium_clmm_account_data(
     discriminator: &[u8],
     account: &crate::streaming::grpc::AccountPretty,

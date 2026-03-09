@@ -80,6 +80,7 @@ pub struct AmmInfo {
 
 pub const AMM_INFO_SIZE: usize = 752;
 
+#[must_use]
 pub fn amm_info_decode(data: &[u8]) -> Option<AmmInfo> {
     if data.len() < AMM_INFO_SIZE {
         return None;
@@ -87,25 +88,24 @@ pub fn amm_info_decode(data: &[u8]) -> Option<AmmInfo> {
     borsh::from_slice::<AmmInfo>(&data[..AMM_INFO_SIZE]).ok()
 }
 
+#[must_use]
 pub fn amm_info_parser(account: &AccountPretty, mut metadata: EventMetadata) -> Option<DexEvent> {
     metadata.event_type = EventType::AccountRaydiumAmmV4AmmInfo;
 
     if account.data.len() < AMM_INFO_SIZE {
         return None;
     }
-    if let Some(amm_info) = amm_info_decode(&account.data[..AMM_INFO_SIZE]) {
-        Some(DexEvent::RaydiumAmmV4AmmInfoAccountEvent(RaydiumAmmV4AmmInfoAccountEvent {
+    amm_info_decode(&account.data[..AMM_INFO_SIZE]).map(|amm_info| {
+        DexEvent::RaydiumAmmV4AmmInfoAccountEvent(RaydiumAmmV4AmmInfoAccountEvent {
             metadata,
             pubkey: account.pubkey,
             executable: account.executable,
             lamports: account.lamports,
             owner: account.owner,
             rent_epoch: account.rent_epoch,
-            amm_info: amm_info,
-        }))
-    } else {
-        None
-    }
+            amm_info,
+        })
+    })
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
@@ -136,6 +136,7 @@ pub struct MarketState {
 
 pub const MARKET_STATE_SIZE: usize = 388;
 
+#[must_use]
 pub fn market_state_decode(data: &[u8]) -> Option<MarketState> {
     if data.len() < MARKET_STATE_SIZE {
         return None;

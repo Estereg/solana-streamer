@@ -8,16 +8,19 @@ pub struct EventTypeFilter {
 }
 
 impl EventTypeFilter {
+    #[must_use]
     pub fn include_transaction_event(&self) -> bool {
         self.include
             .iter()
             .any(|event| !ACCOUNT_EVENT_TYPES.contains(event) && !BLOCK_EVENT_TYPES.contains(event))
     }
 
+    #[must_use]
     pub fn include_account_event(&self) -> bool {
         self.include.iter().any(|event| ACCOUNT_EVENT_TYPES.contains(event))
     }
 
+    #[must_use]
     pub fn include_block_event(&self) -> bool {
         self.include.iter().any(|event| BLOCK_EVENT_TYPES.contains(event))
     }

@@ -25,7 +25,7 @@ pub struct PumpFunCreateTokenEvent {
     pub token_program: Pubkey,
     #[borsh(skip)]
     pub is_mayhem_mode: bool,
-    /// Whether cashback is enabled (IDL CreateEvent.is_cashback_enabled)
+    /// Whether cashback is enabled (IDL `CreateEvent.is_cashback_enabled`)
     #[borsh(skip)]
     pub is_cashback_enabled: bool,
     #[borsh(skip)]
@@ -68,7 +68,7 @@ pub struct PumpFunCreateV2TokenEvent {
     pub token_total_supply: u64,
     pub token_program: Pubkey,
     pub is_mayhem_mode: bool,
-    /// Whether cashback is enabled (IDL CreateEvent.is_cashback_enabled)
+    /// Whether cashback is enabled (IDL `CreateEvent.is_cashback_enabled`)
     pub is_cashback_enabled: bool,
     #[borsh(skip)]
     pub mint_authority: Pubkey,
@@ -96,6 +96,8 @@ pub struct PumpFunCreateV2TokenEvent {
     pub program: Pubkey,
 }
 
+#[allow(clippy::too_many_lines)]
+#[must_use]
 pub fn pumpfun_create_v2_token_event_log_decode(data: &[u8]) -> Option<PumpFunCreateV2TokenEvent> {
     let mut offset = 0;
 
@@ -226,6 +228,7 @@ pub fn pumpfun_create_v2_token_event_log_decode(data: &[u8]) -> Option<PumpFunCr
     })
 }
 
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct PumpFunTradeEvent {
     #[borsh(skip)]
@@ -304,16 +307,18 @@ pub struct PumpFunTradeEvent {
     pub cashback_fee_basis_points: u64,
     #[borsh(skip)]
     pub cashback: u64,
-    /// Whether this is a cashback coin (cashback_fee_basis_points > 0)
+    /// Whether this is a cashback coin (`cashback_fee_basis_points` > 0)
     #[borsh(skip)]
     pub is_cashback_coin: bool,
 }
 
-/// Borsh byte length of TradeEvent fixed fields (IDL order; excludes ix_name and following variable part).
-/// Layout: mint(32)+sol_amount(8)+token_amount(8)+is_buy(1)+user(32)+timestamp(8)+virtual_sol(8)+virtual_token(8)+real_sol(8)+real_token(8)+fee_recipient(32)+fee_basis_points(8)+fee(8)+creator(32)+creator_fee_bps(8)+creator_fee(8)+track_volume(1)+total_unclaimed(8)+total_claimed(8)+current_sol_volume(8)+last_update_timestamp(8) = 250
+/// Borsh byte length of `TradeEvent` fixed fields (IDL order; excludes `ix_name` and following variable part).
+///
+/// Layout: `mint(32)+sol_amount(8)+token_amount(8)+is_buy(1)+user(32)+timestamp(8)+virtual_sol(8)+virtual_token(8)+real_sol(8)+real_token(8)+fee_recipient(32)+fee_basis_points(8)+fee(8)+creator(32)+creator_fee_bps(8)+creator_fee(8)+track_volume(1)+total_unclaimed(8)+total_claimed(8)+current_sol_volume(8)+last_update_timestamp(8)` = 250
 pub const PUMPFUN_TRADE_EVENT_LOG_SIZE: usize = 250;
 
-/// Decode TradeEvent log; if data.len() > 250 then parse ix_name, mayhem_mode, cashback (IDL-aligned).
+/// Decode `TradeEvent` log; if `data.len()` > 250 then parse `ix_name`, `mayhem_mode`, cashback (IDL-aligned).
+#[must_use]
 pub fn pumpfun_trade_event_log_decode(data: &[u8]) -> Option<PumpFunTradeEvent> {
     if data.len() < PUMPFUN_TRADE_EVENT_LOG_SIZE {
         return None;
@@ -325,7 +330,7 @@ pub fn pumpfun_trade_event_log_decode(data: &[u8]) -> Option<PumpFunTradeEvent> 
         offset += increment;
         event.ix_name = ix_name;
     }
-    if offset + 1 <= data.len() {
+    if offset < data.len() {
         event.mayhem_mode = data[offset] != 0;
         offset += 1;
     }
@@ -412,6 +417,7 @@ pub struct PumpFunMigrateEvent {
 
 pub const PUMPFUN_MIGRATE_EVENT_LOG_SIZE: usize = 160;
 
+#[must_use]
 pub fn pumpfun_migrate_event_log_decode(data: &[u8]) -> Option<PumpFunMigrateEvent> {
     if data.len() < PUMPFUN_MIGRATE_EVENT_LOG_SIZE {
         return None;

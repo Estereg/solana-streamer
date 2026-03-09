@@ -56,9 +56,10 @@ pub struct TokenInfoEvent {
 pub struct AccountEventParser {}
 
 impl AccountEventParser {
+    #[must_use]
     pub fn parse_account_event(
         protocols: &[Protocol],
-        account: AccountPretty,
+        account: &AccountPretty,
         event_type_filter: Option<&EventTypeFilter>,
     ) -> Option<DexEvent> {
         use crate::streaming::event_parser::core::dispatcher::EventDispatcher;
@@ -81,7 +82,7 @@ impl AccountEventParser {
                     if let Some(event) = EventDispatcher::dispatch_account(
                         protocol,
                         discriminator,
-                        &account,
+                        account,
                         metadata.clone(),
                     ) {
                         if event_matches_filter(&event, event_type_filter) {
@@ -93,13 +94,13 @@ impl AccountEventParser {
         }
 
         // 2. Generic account types
-        if let Some(event) = Self::parse_nonce_account_event(&account, metadata.clone()) {
+        if let Some(event) = Self::parse_nonce_account_event(account, metadata.clone()) {
             if event_matches_filter(&event, event_type_filter) {
                 return Some(event);
             }
         }
 
-        if let Some(event) = Self::parse_token_account_event(&account, metadata) {
+        if let Some(event) = Self::parse_token_account_event(account, metadata) {
             if event_matches_filter(&event, event_type_filter) {
                 return Some(event);
             }
@@ -108,6 +109,7 @@ impl AccountEventParser {
         None
     }
 
+    #[must_use]
     pub fn parse_token_account_event(
         account: &AccountPretty,
         mut metadata: EventMetadata,
@@ -165,6 +167,7 @@ impl AccountEventParser {
         }))
     }
 
+    #[must_use]
     pub fn parse_nonce_account_event(
         account: &AccountPretty,
         mut metadata: EventMetadata,
@@ -191,7 +194,7 @@ impl AccountEventParser {
 
 #[inline]
 fn event_matches_filter(event: &DexEvent, filter: Option<&EventTypeFilter>) -> bool {
-    filter.map_or(true, |f| f.include.contains(&event.metadata().event_type))
+    filter.is_none_or(|f| f.include.contains(&event.metadata().event_type))
 }
 
 #[inline]

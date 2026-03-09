@@ -15,9 +15,11 @@ async fn test_shreds() -> Result<(), Box<dyn std::error::Error>> {
     println!("Subscribing to ShredStream events...");
 
     // Create low-latency configuration
-    let mut config = StreamClientConfig::default();
     // Enable performance monitoring, has performance overhead, disabled by default
-    config.enable_metrics = true;
+    let config = StreamClientConfig {
+        enable_metrics: true,
+        ..Default::default()
+    };
     let shred_stream =
         ShredStreamGrpc::new_with_config("http://127.0.0.1:10800".to_string(), config).await?;
 
@@ -56,16 +58,14 @@ async fn test_shreds() -> Result<(), Box<dyn std::error::Error>> {
 
 fn create_event_callback() -> impl Fn(DexEvent) {
     |event: DexEvent| {
+        let event_type = event.metadata().event_type.clone();
+        let tx_index = event.metadata().tx_index;
         println!(
-            "🎉 Event received! Type: {:?}, tx_index: {:?}",
-            event.metadata().event_type,
-            event.metadata().tx_index
+            "🎉 Event received! Type: {event_type:?}, tx_index: {tx_index:?}"
         );
-        match event {
-            DexEvent::BlockMetaEvent(e) => {
-                println!("BlockMetaEvent: {:?}", e.metadata.handle_us);
-            }
-            _ => {}
+        if let DexEvent::BlockMetaEvent(e) = event {
+            let handle_us = e.metadata.handle_us;
+            println!("BlockMetaEvent: {handle_us:?}");
         }
     }
 }

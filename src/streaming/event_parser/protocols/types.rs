@@ -21,15 +21,16 @@ pub enum Protocol {
 }
 
 impl Protocol {
+    #[must_use]
     pub fn get_program_id(&self) -> Vec<Pubkey> {
         match self {
-            Protocol::PumpSwap => vec![PUMPSWAP_PROGRAM_ID],
-            Protocol::PumpFun => vec![PUMPFUN_PROGRAM_ID],
-            Protocol::Bonk => vec![BONK_PROGRAM_ID],
-            Protocol::RaydiumCpmm => vec![RAYDIUM_CPMM_PROGRAM_ID],
-            Protocol::RaydiumClmm => vec![RAYDIUM_CLMM_PROGRAM_ID],
-            Protocol::RaydiumAmmV4 => vec![RAYDIUM_AMM_V4_PROGRAM_ID],
-            Protocol::MeteoraDammV2 => vec![METEORA_DAMM_V2_PROGRAM_ID],
+            Self::PumpSwap => vec![PUMPSWAP_PROGRAM_ID],
+            Self::PumpFun => vec![PUMPFUN_PROGRAM_ID],
+            Self::Bonk => vec![BONK_PROGRAM_ID],
+            Self::RaydiumCpmm => vec![RAYDIUM_CPMM_PROGRAM_ID],
+            Self::RaydiumClmm => vec![RAYDIUM_CLMM_PROGRAM_ID],
+            Self::RaydiumAmmV4 => vec![RAYDIUM_AMM_V4_PROGRAM_ID],
+            Self::MeteoraDammV2 => vec![METEORA_DAMM_V2_PROGRAM_ID],
         }
     }
 }
@@ -37,13 +38,13 @@ impl Protocol {
 impl std::fmt::Display for Protocol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Protocol::PumpSwap => write!(f, "PumpSwap"),
-            Protocol::PumpFun => write!(f, "PumpFun"),
-            Protocol::Bonk => write!(f, "Bonk"),
-            Protocol::RaydiumCpmm => write!(f, "RaydiumCpmm"),
-            Protocol::RaydiumClmm => write!(f, "RaydiumClmm"),
-            Protocol::RaydiumAmmV4 => write!(f, "RaydiumAmmV4"),
-            Protocol::MeteoraDammV2 => write!(f, "MeteoraDammV2"),
+            Self::PumpSwap => write!(f, "PumpSwap"),
+            Self::PumpFun => write!(f, "PumpFun"),
+            Self::Bonk => write!(f, "Bonk"),
+            Self::RaydiumCpmm => write!(f, "RaydiumCpmm"),
+            Self::RaydiumClmm => write!(f, "RaydiumClmm"),
+            Self::RaydiumAmmV4 => write!(f, "RaydiumAmmV4"),
+            Self::MeteoraDammV2 => write!(f, "MeteoraDammV2"),
         }
     }
 }
@@ -53,14 +54,14 @@ impl std::str::FromStr for Protocol {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "pumpswap" => Ok(Protocol::PumpSwap),
-            "pumpfun" => Ok(Protocol::PumpFun),
-            "bonk" => Ok(Protocol::Bonk),
-            "raydiumcpmm" => Ok(Protocol::RaydiumCpmm),
-            "raydiumclmm" => Ok(Protocol::RaydiumClmm),
-            "raydiumammv4" => Ok(Protocol::RaydiumAmmV4),
-            "meteoradamm_v2" => Ok(Protocol::MeteoraDammV2),
-            _ => Err(anyhow!("Unsupported protocol: {}", s)),
+            "pumpswap" => Ok(Self::PumpSwap),
+            "pumpfun" => Ok(Self::PumpFun),
+            "bonk" => Ok(Self::Bonk),
+            "raydiumcpmm" => Ok(Self::RaydiumCpmm),
+            "raydiumclmm" => Ok(Self::RaydiumClmm),
+            "raydiumammv4" => Ok(Self::RaydiumAmmV4),
+            "meteoradamm_v2" => Ok(Self::MeteoraDammV2),
+            _ => Err(anyhow!("Unsupported protocol: {s}")),
         }
     }
 }
@@ -68,13 +69,13 @@ impl std::str::FromStr for Protocol {
 impl From<Protocol> for ProtocolType {
     fn from(protocol: Protocol) -> Self {
         match protocol {
-            Protocol::PumpFun => ProtocolType::PumpFun,
-            Protocol::PumpSwap => ProtocolType::PumpSwap,
-            Protocol::Bonk => ProtocolType::Bonk,
-            Protocol::RaydiumCpmm => ProtocolType::RaydiumCpmm,
-            Protocol::RaydiumClmm => ProtocolType::RaydiumClmm,
-            Protocol::RaydiumAmmV4 => ProtocolType::RaydiumAmmV4,
-            Protocol::MeteoraDammV2 => ProtocolType::MeteoraDammV2,
+            Protocol::PumpFun => Self::PumpFun,
+            Protocol::PumpSwap => Self::PumpSwap,
+            Protocol::Bonk => Self::Bonk,
+            Protocol::RaydiumCpmm => Self::RaydiumCpmm,
+            Protocol::RaydiumClmm => Self::RaydiumClmm,
+            Protocol::RaydiumAmmV4 => Self::RaydiumAmmV4,
+            Protocol::MeteoraDammV2 => Self::MeteoraDammV2,
         }
     }
 }

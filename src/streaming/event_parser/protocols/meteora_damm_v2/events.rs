@@ -34,7 +34,7 @@ pub struct PoolFeeParameters {
     pub dynamic_fee: Option<DynamicFeeParameters>,
 }
 
-/// Meteora DAMM v2 Swap Event (corresponds to swap instruction)
+/// Meteora DAMM v2 Swap Event (corresponds to `swap` instruction)
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct MeteoraDammV2SwapEvent {
     #[borsh(skip)]
@@ -101,7 +101,7 @@ pub struct MeteoraDammV2SwapEvent {
     pub program: Pubkey,
 }
 
-/// Meteora DAMM v2 Swap2 Event (corresponds to swap2 instruction)
+/// Meteora DAMM v2 Swap2 Event (corresponds to `swap2` instruction)
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct MeteoraDammV2Swap2Event {
     #[borsh(skip)]
@@ -170,7 +170,7 @@ pub struct MeteoraDammV2Swap2Event {
     pub sysvar: Pubkey,
 }
 
-/// Meteora DAMM v2 Initialize Pool Event (corresponds to initialize_pool instruction)
+/// Meteora DAMM v2 Initialize Pool Event (corresponds to `initialize_pool` instruction)
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct MeteoraDammV2InitializePoolEvent {
     #[borsh(skip)]
@@ -236,7 +236,7 @@ pub struct MeteoraDammV2InitializePoolEvent {
     pub remaining_accounts: Vec<Pubkey>,
 }
 
-/// Meteora DAMM v2 Initialize Customizable Pool Event (corresponds to initialize_customizable_pool instruction)
+/// Meteora DAMM v2 Initialize Customizable Pool Event (corresponds to `initialize_customizable_pool` instruction)
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct MeteoraDammV2InitializeCustomizablePoolEvent {
     #[borsh(skip)]
@@ -304,7 +304,7 @@ pub struct MeteoraDammV2InitializeCustomizablePoolEvent {
     pub remaining_accounts: Vec<Pubkey>,
 }
 
-/// Meteora DAMM v2 Initialize Pool With Dynamic Config Event (corresponds to initialize_pool_with_dynamic_config instruction)
+/// Meteora DAMM v2 Initialize Pool With Dynamic Config Event (corresponds to `initialize_pool_with_dynamic_config` instruction)
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct MeteoraDammV2InitializePoolWithDynamicConfigEvent {
     #[borsh(skip)]
@@ -401,6 +401,7 @@ pub mod discriminators {
 
 /// Decode swap event from CPI log
 pub const METEORA_DAMM_V2_SWAP_EVENT_LOG_SIZE: usize = 180;
+#[must_use]
 pub fn meteora_damm_v2_swap_event_decode(data: &[u8]) -> Option<MeteoraDammV2SwapEvent> {
     if data.len() < METEORA_DAMM_V2_SWAP_EVENT_LOG_SIZE {
         return None;
@@ -410,8 +411,9 @@ pub fn meteora_damm_v2_swap_event_decode(data: &[u8]) -> Option<MeteoraDammV2Swa
 
 /// Decode initialize pool event from CPI log
 /// Note: discriminator (16 bytes) is already removed by the caller
+#[must_use]
 pub fn meteora_damm_v2_initialize_pool_event_decode(
     data: &[u8],
 ) -> Option<MeteoraDammV2InitializePoolEvent> {
-    borsh::from_slice::<MeteoraDammV2InitializePoolEvent>(&data).ok()
+    borsh::from_slice::<MeteoraDammV2InitializePoolEvent>(data).ok()
 }

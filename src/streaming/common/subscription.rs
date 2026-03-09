@@ -2,39 +2,44 @@ use tokio::task::JoinHandle;
 
 /// Subscription handle for managing and stopping subscriptions
 pub struct SubscriptionHandle {
-    stream_handle: JoinHandle<()>,
-    event_handle: Option<JoinHandle<()>>,
-    metrics_handle: Option<JoinHandle<()>>,
+    stream: JoinHandle<()>,
+    event: Option<JoinHandle<()>>,
+    metrics: Option<JoinHandle<()>>,
 }
 
 impl SubscriptionHandle {
     /// Create a new subscription handle
-    pub fn new(
-        stream_handle: JoinHandle<()>,
-        event_handle: Option<JoinHandle<()>>,
-        metrics_handle: Option<JoinHandle<()>>,
+    #[must_use]
+    pub const fn new(
+        stream: JoinHandle<()>,
+        event: Option<JoinHandle<()>>,
+        metrics: Option<JoinHandle<()>>,
     ) -> Self {
-        Self { stream_handle, event_handle, metrics_handle }
+        Self { stream, event, metrics }
     }
 
     /// Stop subscription and abort all related tasks
     pub fn stop(self) {
-        self.stream_handle.abort();
-        if let Some(handle) = self.event_handle {
+        self.stream.abort();
+        if let Some(handle) = self.event {
             handle.abort();
         }
-        if let Some(handle) = self.metrics_handle {
+        if let Some(handle) = self.metrics {
             handle.abort();
         }
     }
 
     /// Asynchronously wait for all tasks to complete
+    ///
+    /// # Errors
+    ///
+    /// Returns a `tokio::task::JoinError` if any of the tasks failed to join correctly.
     pub async fn join(self) -> Result<(), tokio::task::JoinError> {
-        let _ = self.stream_handle.await;
-        if let Some(handle) = self.event_handle {
+        let _ = self.stream.await;
+        if let Some(handle) = self.event {
             let _ = handle.await;
         }
-        if let Some(handle) = self.metrics_handle {
+        if let Some(handle) = self.metrics {
             let _ = handle.await;
         }
         Ok(())

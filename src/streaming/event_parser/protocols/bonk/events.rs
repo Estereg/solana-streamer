@@ -69,6 +69,7 @@ pub struct BonkTradeEvent {
 
 pub const BONK_TRADE_EVENT_LOG_SIZE: usize = 32 + 8 * 13 + 1 + 1 + 1;
 
+#[must_use]
 pub fn bonk_trade_event_log_decode(data: &[u8]) -> Option<BonkTradeEvent> {
     if data.len() < BONK_TRADE_EVENT_LOG_SIZE {
         return None;
@@ -106,6 +107,7 @@ pub struct BonkPoolCreateEvent {
 
 pub const BONK_POOL_CREATE_EVENT_LOG_SIZE: usize = 256;
 
+#[must_use]
 pub fn bonk_pool_create_event_log_decode(data: &[u8]) -> Option<BonkPoolCreateEvent> {
     if data.len() < BONK_POOL_CREATE_EVENT_LOG_SIZE {
         return None;

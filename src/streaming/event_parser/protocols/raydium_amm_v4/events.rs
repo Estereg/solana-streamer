@@ -127,7 +127,7 @@ pub struct RaydiumAmmV4WithdrawEvent {
     pub serum_asks: Pubkey,
 }
 
-/// WithdrawPnl event structure
+/// `WithdrawPnl` event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct RaydiumAmmV4WithdrawPnlEvent {
     #[borsh(skip)]
@@ -152,7 +152,7 @@ pub struct RaydiumAmmV4WithdrawPnlEvent {
     pub serum_vault_signer: Pubkey,
 }
 
-/// AmmInfo account event structure
+/// `AmmInfo` account event structure
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct RaydiumAmmV4AmmInfoAccountEvent {
     #[borsh(skip)]
@@ -170,11 +170,11 @@ pub mod discriminators {
     // Instruction Discriminators
     pub const SWAP_BASE_IN: &[u8] = &[9];
     pub const SWAP_BASE_OUT: &[u8] = &[11];
-    pub const DEPOSIT: &[u8] = &[03];
-    pub const INITIALIZE2: &[u8] = &[01];
-    pub const WITHDRAW: &[u8] = &[04];
-    pub const WITHDRAW_PNL: &[u8] = &[07];
+    pub const DEPOSIT: &[u8] = &[3];
+    pub const INITIALIZE2: &[u8] = &[1];
+    pub const WITHDRAW: &[u8] = &[4];
+    pub const WITHDRAW_PNL: &[u8] = &[7];
 
-    /// AmmInfo Discriminator
+    /// `AmmInfo` Discriminator
     pub const AMM_INFO: &[u8] = &[6];
 }

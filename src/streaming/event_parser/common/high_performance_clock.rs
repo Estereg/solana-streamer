@@ -12,24 +12,25 @@ pub struct HighPerformanceClock {
 
 impl HighPerformanceClock {
     /// Create a new high-performance clock
+    #[must_use]
     pub fn new() -> Self {
         let mut best_offset = i64::MAX;
         let mut best_instant = Instant::now();
-        let mut best_timestamp = SystemTime::now()
+        let mut best_timestamp = i64::try_from(SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
-            .as_micros() as i64;
+            .as_micros()).unwrap_or(i64::MAX);
 
         // Take 3 samples, select the one with minimum latency
         for _ in 0..3 {
             let instant_before = Instant::now();
-            let timestamp = SystemTime::now()
+            let timestamp = i64::try_from(SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
-                .as_micros() as i64;
+                .as_micros()).unwrap_or(i64::MAX);
             let instant_after = Instant::now();
 
-            let sample_latency = instant_after.duration_since(instant_before).as_nanos() as i64;
+            let sample_latency = i64::try_from(instant_after.duration_since(instant_before).as_nanos()).unwrap_or(i64::MAX);
 
             if sample_latency < best_offset {
                 best_offset = sample_latency;
@@ -45,23 +46,26 @@ impl HighPerformanceClock {
     }
 
     /// Get current timestamp (microseconds) using monotonic clock, avoiding system calls
-    #[inline(always)]
+    #[must_use]
+    #[inline]
     pub fn now_micros(&self) -> i64 {
         let elapsed = self.base_instant.elapsed();
-        self.base_timestamp_us + elapsed.as_micros() as i64
+        self.base_timestamp_us + i64::try_from(elapsed.as_micros()).unwrap_or(i64::MAX)
     }
 
     /// Calculate elapsed time (microseconds) since the specified timestamp
-    #[inline(always)]
+    #[must_use]
+    #[inline]
     pub fn elapsed_micros_since(&self, start_timestamp_us: i64) -> i64 {
         self.now_micros() - start_timestamp_us
     }
 
     /// Get high-precision nanosecond timestamp
-    #[inline(always)]
+    #[must_use]
+    #[inline]
     pub fn now_nanos(&self) -> i128 {
         let elapsed = self.base_instant.elapsed();
-        (self.base_timestamp_us as i128 * 1000) + elapsed.as_nanos() as i128
+        (i128::from(self.base_timestamp_us) * 1000) + i128::try_from(elapsed.as_nanos()).unwrap_or(i128::MAX)
     }
 }
 
@@ -76,14 +80,16 @@ static HIGH_PERF_CLOCK: std::sync::OnceLock<HighPerformanceClock> =
     std::sync::OnceLock::new();
 
 /// Get current timestamp (microseconds) from global high-performance clock
-#[inline(always)]
+#[must_use]
+#[inline]
 pub fn get_high_perf_clock() -> i64 {
     let clock = HIGH_PERF_CLOCK.get_or_init(HighPerformanceClock::new);
     clock.now_micros()
 }
 
 /// Calculate elapsed time (microseconds) since the specified timestamp
-#[inline(always)]
+#[must_use]
+#[inline]
 pub fn elapsed_micros_since(start_timestamp_us: i64) -> i64 {
     get_high_perf_clock() - start_timestamp_us
 }

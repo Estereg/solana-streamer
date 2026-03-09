@@ -30,6 +30,7 @@ pub struct AmmConfig {
 
 pub const AMM_CONFIG_SIZE: usize = 1 + 2 + 32 + 4 * 2 + 2 + 4 * 2 + 32 + 8 * 3;
 
+#[must_use]
 pub fn amm_config_decode(data: &[u8]) -> Option<AmmConfig> {
     if data.len() < AMM_CONFIG_SIZE {
         return None;
@@ -37,25 +38,24 @@ pub fn amm_config_decode(data: &[u8]) -> Option<AmmConfig> {
     borsh::from_slice::<AmmConfig>(&data[..AMM_CONFIG_SIZE]).ok()
 }
 
+#[must_use]
 pub fn amm_config_parser(account: &AccountPretty, mut metadata: EventMetadata) -> Option<DexEvent> {
     metadata.event_type = EventType::AccountRaydiumClmmAmmConfig;
 
     if account.data.len() < AMM_CONFIG_SIZE + 8 {
         return None;
     }
-    if let Some(amm_config) = amm_config_decode(&account.data[8..AMM_CONFIG_SIZE + 8]) {
-        Some(DexEvent::RaydiumClmmAmmConfigAccountEvent(RaydiumClmmAmmConfigAccountEvent {
+    amm_config_decode(&account.data[8..AMM_CONFIG_SIZE + 8]).map(|amm_config| {
+        DexEvent::RaydiumClmmAmmConfigAccountEvent(RaydiumClmmAmmConfigAccountEvent {
             metadata,
             pubkey: account.pubkey,
             executable: account.executable,
             lamports: account.lamports,
             owner: account.owner,
             rent_epoch: account.rent_epoch,
-            amm_config: amm_config,
-        }))
-    } else {
-        None
-    }
+            amm_config,
+        })
+    })
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
@@ -117,6 +117,7 @@ pub struct PoolState {
 
 pub const POOL_STATE_SIZE: usize = 1536;
 
+#[must_use]
 pub fn pool_state_decode(data: &[u8]) -> Option<PoolState> {
     if data.len() < POOL_STATE_SIZE {
         return None;
@@ -124,28 +125,27 @@ pub fn pool_state_decode(data: &[u8]) -> Option<PoolState> {
     borsh::from_slice::<PoolState>(&data[..POOL_STATE_SIZE]).ok()
 }
 
+#[must_use]
 pub fn pool_state_parser(account: &AccountPretty, mut metadata: EventMetadata) -> Option<DexEvent> {
     metadata.event_type = EventType::AccountRaydiumClmmPoolState;
 
     if account.data.len() < POOL_STATE_SIZE + 8 {
         return None;
     }
-    if let Some(pool_state) = pool_state_decode(&account.data[8..POOL_STATE_SIZE + 8]) {
-        Some(DexEvent::RaydiumClmmPoolStateAccountEvent(RaydiumClmmPoolStateAccountEvent {
+    pool_state_decode(&account.data[8..POOL_STATE_SIZE + 8]).map(|pool_state| {
+        DexEvent::RaydiumClmmPoolStateAccountEvent(Box::new(RaydiumClmmPoolStateAccountEvent {
             metadata,
             pubkey: account.pubkey,
             executable: account.executable,
             lamports: account.lamports,
             owner: account.owner,
             rent_epoch: account.rent_epoch,
-            pool_state: pool_state,
+            pool_state,
         }))
-    } else {
-        None
-    }
+    })
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct TickState {
     pub tick: i32,
     pub liquidity_net: i128,
@@ -156,19 +156,6 @@ pub struct TickState {
     pub padding: [u32; 13],
 }
 
-impl Default for TickState {
-    fn default() -> Self {
-        Self {
-            tick: 0,
-            liquidity_net: 0,
-            liquidity_gross: 0,
-            fee_growth_outside0_x64: 0,
-            fee_growth_outside1_x64: 0,
-            reward_growths_outside_x64: [0; 3],
-            padding: [0; 13],
-        }
-    }
-}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, BorshDeserialize)]
 pub struct TickArrayState {
@@ -197,6 +184,7 @@ impl Default for TickArrayState {
 
 pub const TICK_ARRAY_STATE_SIZE: usize = 10232;
 
+#[must_use]
 pub fn tick_array_state_decode(data: &[u8]) -> Option<TickArrayState> {
     if data.len() < TICK_ARRAY_STATE_SIZE {
         return None;
@@ -204,6 +192,7 @@ pub fn tick_array_state_decode(data: &[u8]) -> Option<TickArrayState> {
     borsh::from_slice::<TickArrayState>(&data[..TICK_ARRAY_STATE_SIZE]).ok()
 }
 
+#[must_use]
 pub fn tick_array_state_parser(
     account: &AccountPretty,
     mut metadata: EventMetadata,
@@ -213,10 +202,8 @@ pub fn tick_array_state_parser(
     if account.data.len() < TICK_ARRAY_STATE_SIZE + 8 {
         return None;
     }
-    if let Some(tick_array_state) =
-        tick_array_state_decode(&account.data[8..TICK_ARRAY_STATE_SIZE + 8])
-    {
-        Some(DexEvent::RaydiumClmmTickArrayStateAccountEvent(
+    tick_array_state_decode(&account.data[8..TICK_ARRAY_STATE_SIZE + 8]).map(|tick_array_state| {
+        DexEvent::RaydiumClmmTickArrayStateAccountEvent(Box::new(
             RaydiumClmmTickArrayStateAccountEvent {
                 metadata,
                 pubkey: account.pubkey,
@@ -224,10 +211,8 @@ pub fn tick_array_state_parser(
                 lamports: account.lamports,
                 owner: account.owner,
                 rent_epoch: account.rent_epoch,
-                tick_array_state: tick_array_state,
+                tick_array_state,
             },
         ))
-    } else {
-        None
-    }
+    })
 }
