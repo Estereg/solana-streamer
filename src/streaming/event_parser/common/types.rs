@@ -268,18 +268,13 @@ impl InnerInstructionLike for solana_sdk::message::compiled_instruction::Compile
     }
 }
 
-/// Adapter for gRPC inner instructions (yellowstone)
-impl InnerInstructionLike for yellowstone_grpc_proto::prelude::InnerInstruction {
-    fn program_id_index(&self) -> usize {
-        self.program_id_index as usize
-    }
-    fn accounts(&self) -> &[u8] {
-        &self.accounts
-    }
-    fn data(&self) -> &[u8] {
-        &self.data
-    }
-}
+static SOL_MINT: std::sync::LazyLock<Pubkey> =
+    std::sync::LazyLock::new(|| Pubkey::from_str("So11111111111111111111111111111111111111111").unwrap());
+static SYSTEM_PROGRAMS: std::sync::LazyLock<[Pubkey; 3]> = std::sync::LazyLock::new(|| [
+    Pubkey::from_str("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA").unwrap(),
+    Pubkey::from_str("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb").unwrap(),
+    Pubkey::from_str("11111111111111111111111111111111").unwrap(),
+]);
 
 /// Extract event context (mint/token account/vault info) from a DexEvent
 fn extract_swap_context(event: &DexEvent) -> (
