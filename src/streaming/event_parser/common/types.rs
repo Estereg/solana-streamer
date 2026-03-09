@@ -268,13 +268,18 @@ impl InnerInstructionLike for solana_sdk::message::compiled_instruction::Compile
     }
 }
 
-static SOL_MINT: std::sync::LazyLock<Pubkey> =
-    std::sync::LazyLock::new(|| Pubkey::from_str("So11111111111111111111111111111111111111111").unwrap());
-static SYSTEM_PROGRAMS: std::sync::LazyLock<[Pubkey; 3]> = std::sync::LazyLock::new(|| [
-    Pubkey::from_str("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA").unwrap(),
-    Pubkey::from_str("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb").unwrap(),
-    Pubkey::from_str("11111111111111111111111111111111").unwrap(),
-]);
+/// Adapter for gRPC inner instructions (yellowstone)
+impl InnerInstructionLike for yellowstone_grpc_proto::prelude::InnerInstruction {
+    fn program_id_index(&self) -> usize {
+        self.program_id_index as usize
+    }
+    fn accounts(&self) -> &[u8] {
+        &self.accounts
+    }
+    fn data(&self) -> &[u8] {
+        &self.data
+    }
+}
 
 /// Extract event context (mint/token account/vault info) from a DexEvent
 fn extract_swap_context(event: &DexEvent) -> (
@@ -354,7 +359,7 @@ fn extract_swap_context(event: &DexEvent) -> (
 fn extract_swap_data_from_instructions<I: InnerInstructionLike>(
     event: &DexEvent,
     instructions: impl Iterator<Item = I>,
-    current_index: i8,
+    current_index: i32,
     accounts: &[Pubkey],
 ) -> Option<SwapData> {
     let (mut swap_data, fm, tm, uft, utt, fv, tv) = extract_swap_context(event);
@@ -366,8 +371,13 @@ fn extract_swap_data_from_instructions<I: InnerInstructionLike>(
     let to_mint = tm.unwrap_or_default();
     let from_mint = fm.unwrap_or_default();
 
-    for instruction in instructions.skip((current_index + 1) as usize) {
-        let program_id = accounts[instruction.program_id_index()];
+    let skip_count = (current_index + 1).max(0) as usize;
+    for instruction in instructions.skip(skip_count) {
+        let program_id_index = instruction.program_id_index();
+        let program_id = match accounts.get(program_id_index) {
+            Some(&pid) => pid,
+            None => break,
+        };
         if !SYSTEM_PROGRAMS.contains(&program_id) {
             break;
         }
@@ -378,19 +388,31 @@ fn extract_swap_data_from_instructions<I: InnerInstructionLike>(
             continue;
         }
 
-        let get_pubkey = |i: usize| accounts[accs[i] as usize];
+        let get_pubkey = |i: usize| -> Option<Pubkey> {
+            let idx = accs.get(i).copied().map(|b| b as usize)?;
+            accounts.get(idx).copied()
+        };
         let (source, destination, amount) = match data[0] {
-            12 if accs.len() >= 4 => {
+            12 if accs.len() >= 4 && data.len() >= 9 => {
                 let amt = u64::from_le_bytes(data[1..9].try_into().unwrap());
-                (get_pubkey(0), get_pubkey(2), amt)
+                match (get_pubkey(0), get_pubkey(2)) {
+                    (Some(s), Some(d)) => (s, d, amt),
+                    _ => continue,
+                }
             }
-            3 if accs.len() >= 3 => {
+            3 if accs.len() >= 3 && data.len() >= 9 => {
                 let amt = u64::from_le_bytes(data[1..9].try_into().unwrap());
-                (get_pubkey(0), get_pubkey(1), amt)
+                match (get_pubkey(0), get_pubkey(1)) {
+                    (Some(s), Some(d)) => (s, d, amt),
+                    _ => continue,
+                }
             }
-            2 if accs.len() >= 2 => {
+            2 if accs.len() >= 2 && data.len() >= 12 => {
                 let amt = u64::from_le_bytes(data[4..12].try_into().unwrap());
-                (get_pubkey(0), get_pubkey(1), amt)
+                match (get_pubkey(0), get_pubkey(1)) {
+                    (Some(s), Some(d)) => (s, d, amt),
+                    _ => continue,
+                }
             }
             _ => continue,
         };
@@ -445,7 +467,7 @@ fn extract_swap_data_from_instructions<I: InnerInstructionLike>(
 pub fn parse_swap_data_from_next_instructions(
     event: &DexEvent,
     inner_instruction: &solana_transaction_status::InnerInstructions,
-    current_index: i8,
+    current_index: i32,
     accounts: &[Pubkey],
 ) -> Option<SwapData> {
     extract_swap_data_from_instructions(
@@ -460,7 +482,7 @@ pub fn parse_swap_data_from_next_instructions(
 pub fn parse_swap_data_from_next_grpc_instructions(
     event: &DexEvent,
     inner_instruction: &yellowstone_grpc_proto::prelude::InnerInstructions,
-    current_index: i8,
+    current_index: i32,
     accounts: &[Pubkey],
 ) -> Option<SwapData> {
     extract_swap_data_from_instructions(
