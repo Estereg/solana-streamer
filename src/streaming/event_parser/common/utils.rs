@@ -58,14 +58,14 @@ pub fn read_u8_le(data: &[u8], offset: usize) -> Option<u8> {
 }
 
 pub fn read_option_bool(data: &[u8], offset: &mut usize) -> Option<Option<bool>> {
-    let has_value = data.get(*offset)?.clone();
+    let has_value = data.get(*offset).copied()?;
     *offset += 1;
 
     if has_value == 0 {
         return Some(None);
     }
 
-    let value = data.get(*offset)?.clone();
+    let value = data.get(*offset).copied()?;
     *offset += 1;
 
     Some(Some(value != 0))

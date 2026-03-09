@@ -12,7 +12,7 @@ use crate::streaming::event_parser::{Protocol, DexEvent};
 use crate::streaming::grpc::MetricsManager;
 use crate::streaming::shred::pool::factory;
 use log::error;
-use solana_entry::entry::Entry;
+use solana_entry::entry::Entry as SolanaEntry;
 
 use super::ShredStreamGrpc;
 
@@ -49,7 +49,7 @@ impl ShredStreamGrpc {
             while let Some(message) = stream.next().await {
                 match message {
                     Ok(msg) => {
-                        if let Ok(entries) = bincode::deserialize::<Vec<Entry>>(&msg.entries) {
+                        if let Ok(entries) = bincode::deserialize::<Vec<SolanaEntry>>(&msg.entries) {
                             for entry in entries {
                                 for (tx_index, transaction) in entry.transactions.iter().enumerate() {
                                     let transaction_with_slot =

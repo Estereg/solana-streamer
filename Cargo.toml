@@ -24,7 +24,6 @@ serde-big-array = "0.5.1"
 futures = "0.3.32"
 bincode = "1.3"
 anyhow = "1.0.102"
-bs58 = "0.5.1"
 yellowstone-grpc-client = {  version = "10.2.0" }
 yellowstone-grpc-proto = {  version = "10.1.1" }
 tokio = { version = "1.50.0", features = ["full", "rt-multi-thread"]}
@@ -35,7 +34,6 @@ dashmap = "6.1.0"
 prost = "0.14.3"
 prost-types = "0.14.3"
 crossbeam-queue = "0.3.12"
-wide = "1.1.1"
 spl-token = { version = "9.0.0", default-features = false, features = ["no-entrypoint"] }
 spl-token-2022 = { version = "10.0.0", default-features = false, features = ["no-entrypoint"] }
 solana-commitment-config = { version = "3.1.1", features = ["serde"] }
