@@ -82,7 +82,7 @@ impl EventParser {
                     .collect();
                 // 解析指令事件
                 let instructions = &message.instructions;
-                let recent_blockhash = if message.recent_blockhash.is_empty() {
+                let recent_blockhash = if message.recent_blockhash.len() != 32 {
                     None
                 } else {
                     Some(solana_sdk::bs58::encode(&message.recent_blockhash).into_string())
@@ -434,7 +434,7 @@ impl EventParser {
                 if let Some(swap_data) = parse_swap_data_from_next_grpc_instructions(
                     &event,
                     inner_instructions_ref,
-                    current_inner_idx as i8,
+                    current_inner_idx,
                     accounts,
                 ) {
                     event.metadata_mut().set_swap_data(swap_data);
@@ -602,7 +602,7 @@ impl EventParser {
                         parse_swap_data_from_next_instructions(
                             &event,
                             inner_instructions_ref,
-                            current_inner_idx as i8,
+                            current_inner_idx,
                             accounts,
                         )
                     } else {

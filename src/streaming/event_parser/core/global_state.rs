@@ -55,10 +55,11 @@ impl GlobalState {
             .map(|entry| *entry.key())
             .collect();
 
-        // Remove old signatures atomically
+        // Remove old signatures atomically; only decrement count when entry was present
         for signature in signatures_to_remove {
-            self.signature_data.remove(&signature);
-            self.signature_count.fetch_sub(1, Ordering::Relaxed);
+            if self.signature_data.remove(&signature).is_some() {
+                self.signature_count.fetch_sub(1, Ordering::Relaxed);
+            }
         }
     }
 
